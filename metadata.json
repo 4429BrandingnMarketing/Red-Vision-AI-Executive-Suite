@@ -1,0 +1,10 @@
+{
+  "name": "Red Vision Creative Studio",
+  "description": "The All-In-One AI Studio Engine Built by 25-Year Entertainment Executive Jason Salvador.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
