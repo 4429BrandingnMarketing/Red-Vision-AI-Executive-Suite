@@ -15,7 +15,7 @@
     "check": "npm run typecheck && npm run build",
     "desktop": "npm run build && electron .",
     "desktop:dir": "npm run build && electron-builder --dir",
-    "desktop:mac": "npm run build && electron-builder --mac dmg --x64"
+    "desktop:mac": "npm run build && electron-builder --mac dmg --x64 --publish never"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
