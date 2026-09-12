@@ -27,5 +27,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: red-vision-mac-intel
-          path: release/*.dmg
+          path: dist/*.dmg
           if-no-files-found: error
