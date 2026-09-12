@@ -52,3 +52,5 @@ See `.env.example`. Never commit `.env`, `.env.local`, API keys, access tokens, 
 The YouTube console, developer integrations, client activity, social proof, and any other locally seeded data must be labeled `Demo` until backed by authenticated provider APIs and persistent data.
 
 Installer builds from `repair/production-hardening` are unsigned test releases intended for internal validation.
+
+Desktop installers are generated automatically from validated commits on `main`.
