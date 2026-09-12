@@ -3,6 +3,7 @@ name: Desktop Build
 on:
   workflow_dispatch:
   push:
+    branches: ['repair/production-hardening']
     tags: ['desktop-v*']
 
 permissions:
