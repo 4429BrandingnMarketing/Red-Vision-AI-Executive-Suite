@@ -14,6 +14,16 @@ This repository is in production-hardening. It is suitable for controlled develo
 4. Run `npm run dev`.
 5. Open `http://localhost:3000`.
 
+## Standalone desktop app
+
+The desktop edition uses Electron and runs the Express API locally inside the app. Browser pages do not receive Node.js access.
+
+- `npm run desktop` launches the desktop app for development verification.
+- `npm run desktop:dir` creates an unpacked desktop build for the current operating system.
+- `npm run desktop:mac` creates an Intel macOS DMG in `release/`.
+
+The GitHub `Desktop Build` workflow creates the Intel DMG manually or whenever a `desktop-v*` tag is pushed. The current build is unsigned; macOS distribution should add Apple Developer ID signing and notarization before public release.
+
 ## Required release gate
 
 Every pull request must pass:
