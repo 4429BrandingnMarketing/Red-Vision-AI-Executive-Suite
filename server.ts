@@ -143,9 +143,42 @@ async function fileUriToBase64(uri: string): Promise<{ data: string; mimeType: s
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT || 3000);
+  const rateLimitPerMinute = Number(process.env.API_RATE_LIMIT_PER_MINUTE || 60);
+  const requestCounts = new Map<string, { count: number; resetAt: number }>();
 
-  app.use(express.json({ limit: '50mb' }));
+  app.disable('x-powered-by');
+  app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(), geolocation=(), microphone=(self)');
+    next();
+  });
+  app.use(express.json({ limit: '10mb' }));
+
+  app.get('/health', (_req, res) => {
+    res.status(200).json({ status: 'ok', service: 'red-vision-ai-executive-suite' });
+  });
+
+  app.use('/api', (req, res, next) => {
+    const now = Date.now();
+    const key = req.ip || req.socket.remoteAddress || 'unknown';
+    const current = requestCounts.get(key);
+
+    if (!current || current.resetAt <= now) {
+      requestCounts.set(key, { count: 1, resetAt: now + 60_000 });
+      return next();
+    }
+
+    if (current.count >= rateLimitPerMinute) {
+      res.setHeader('Retry-After', Math.max(1, Math.ceil((current.resetAt - now) / 1000)));
+      return res.status(429).json({ error: 'Too many requests. Please try again shortly.' });
+    }
+
+    current.count += 1;
+    next();
+  });
 
   // Endpoint to generate prompt
   app.post('/api/generate-prompt', async (req, res) => {
