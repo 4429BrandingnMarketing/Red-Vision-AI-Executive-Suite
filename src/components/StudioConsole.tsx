@@ -3,7 +3,7 @@ import {
   Music, Film, Calendar, Users, Key, Play, Pause, Volume2, Disc, Sparkles, 
   Plus, Check, X, Send, Shield, Loader2, ArrowRight, Download, Sliders, ChevronRight, Lock, Bot,
   LayoutGrid, TrendingUp, Zap, Eye, Box, Folder, UserPlus, ShieldCheck, Edit3, AlertCircle,
-  Terminal, Youtube, Share2, Github, Cpu, Flame, Mic, Contrast, Brain
+  Terminal, Youtube, Share2, Github, Cpu, Flame, Mic, Contrast, Brain, Building2
 } from 'lucide-react';
 import { ConsoleTab, ReleaseItem, TeamMember, TeamMessage, AudioSynthResult, UserAccessRole, CollaboratorInvite, QuickStartTemplate } from '../types/index.js';
 import { INITIAL_RELEASES, TEAM_MEMBERS, INITIAL_MESSAGES, JASON_PORTRAIT_IMG, CLAY_STUDIO_IMG } from '../data/redVisionData.js';
@@ -40,6 +40,7 @@ import { ProjectMilestoneGantt } from './ProjectMilestoneGantt.js';
 import { VoiceoverEngine } from './VoiceoverEngine.js';
 import { AdAgencySystem } from './AdAgencySystem.js';
 import { OsidanMemoryCenter } from './OsidanMemoryCenter.js';
+import { RedVisionOffice } from './RedVisionOffice.js';
 
 type AppState = 'IDLE' | 'GENERATING_ATMOSPHERE' | 'GENERATING_PROMPT' | 'GENERATING_VIDEO' | 'VIDEO_READY';
 
@@ -51,7 +52,7 @@ interface VideoVersion {
 }
 
 export function StudioConsole() {
-  const [activeTab, setActiveTab] = useState<ConsoleTab>('agency');
+  const [activeTab, setActiveTab] = useState<ConsoleTab>('office');
   const [isConsoleHighContrast, setIsConsoleHighContrast] = useState<boolean>(false);
   const [currentUserAvatar, setCurrentUserAvatar] = useState<string>(JASON_PORTRAIT_IMG);
   const [showAvatarCustomizer, setShowAvatarCustomizer] = useState<boolean>(false);
@@ -705,6 +706,18 @@ export function StudioConsole() {
             >
               <Sliders className="w-4 h-4 text-amber-400" />
               Gantt Timeline
+            </button>
+
+            <button
+              onClick={() => setActiveTab('office')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs font-bold uppercase tracking-wider transition-all ${
+                activeTab === 'office'
+                  ? 'bg-gradient-to-r from-red-600 to-amber-600 text-white shadow-lg shadow-red-600/30'
+                  : 'text-red-400 hover:text-white hover:bg-zinc-900'
+              }`}
+            >
+              <Building2 className="w-4 h-4" />
+              HQ Office
             </button>
 
             <button
@@ -1383,6 +1396,11 @@ export function StudioConsole() {
         {/* TAB: PROJECT MILESTONE GANTT TIMELINE */}
         {activeTab === 'gantt' && (
           <ProjectMilestoneGantt />
+        )}
+
+        {/* RED VISION HQ OFFICE */}
+        {activeTab === 'office' && (
+          <RedVisionOffice />
         )}
 
         {/* OSIDAN SHARED MEMORY CENTER */}
