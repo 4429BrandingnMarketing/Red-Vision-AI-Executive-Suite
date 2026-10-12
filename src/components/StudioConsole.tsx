@@ -3,7 +3,7 @@ import {
   Music, Film, Calendar, Users, Key, Play, Pause, Volume2, Disc, Sparkles, 
   Plus, Check, X, Send, Shield, Loader2, ArrowRight, Download, Sliders, ChevronRight, Lock, Bot,
   LayoutGrid, TrendingUp, Zap, Eye, Box, Folder, UserPlus, ShieldCheck, Edit3, AlertCircle,
-  Terminal, Youtube, Share2, Github, Cpu, Flame, Mic, Contrast
+  Terminal, Youtube, Share2, Github, Cpu, Flame, Mic, Contrast, Brain
 } from 'lucide-react';
 import { ConsoleTab, ReleaseItem, TeamMember, TeamMessage, AudioSynthResult, UserAccessRole, CollaboratorInvite, QuickStartTemplate } from '../types/index.js';
 import { INITIAL_RELEASES, TEAM_MEMBERS, INITIAL_MESSAGES, JASON_PORTRAIT_IMG, CLAY_STUDIO_IMG } from '../data/redVisionData.js';
@@ -39,6 +39,7 @@ import { OmniSearchBar } from './OmniSearchBar.js';
 import { ProjectMilestoneGantt } from './ProjectMilestoneGantt.js';
 import { VoiceoverEngine } from './VoiceoverEngine.js';
 import { AdAgencySystem } from './AdAgencySystem.js';
+import { OsidanMemoryCenter } from './OsidanMemoryCenter.js';
 
 type AppState = 'IDLE' | 'GENERATING_ATMOSPHERE' | 'GENERATING_PROMPT' | 'GENERATING_VIDEO' | 'VIDEO_READY';
 
@@ -707,6 +708,18 @@ export function StudioConsole() {
             </button>
 
             <button
+              onClick={() => setActiveTab('memory')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs font-bold uppercase tracking-wider transition-all ${
+                activeTab === 'memory'
+                  ? 'bg-gradient-to-r from-amber-600 to-red-600 text-white shadow-lg shadow-amber-600/30'
+                  : 'text-amber-400 hover:text-white hover:bg-zinc-900'
+              }`}
+            >
+              <Brain className="w-4 h-4" />
+              Osidan Memory
+            </button>
+
+            <button
               onClick={() => setActiveTab('staff')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs font-bold uppercase tracking-wider transition-all ${
                 activeTab === 'staff'
@@ -1370,6 +1383,11 @@ export function StudioConsole() {
         {/* TAB: PROJECT MILESTONE GANTT TIMELINE */}
         {activeTab === 'gantt' && (
           <ProjectMilestoneGantt />
+        )}
+
+        {/* OSIDAN SHARED MEMORY CENTER */}
+        {activeTab === 'memory' && (
+          <OsidanMemoryCenter />
         )}
 
         {/* TAB 4: AI SPECIALIZED STAFF ROSTER & REAL-TIME COLLABORATIVE CHAT */}
