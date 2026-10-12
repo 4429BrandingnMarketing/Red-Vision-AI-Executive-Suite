@@ -1,6 +1,8 @@
 import dotenv from 'dotenv';
 import express from 'express';
 import path from 'path';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type, Modality } from '@google/genai';
 
@@ -74,6 +76,53 @@ interface GenerateBody {
   atmosphereDesc?: string;
   productImages?: InlineImage[];
   atmosphereImages?: InlineImage[];
+}
+
+
+type OsidanMemoryKind = 'identity' | 'preference' | 'company' | 'project' | 'decision' | 'checkpoint';
+
+interface OsidanMemoryEntry {
+  id: string;
+  kind: OsidanMemoryKind;
+  title: string;
+  content: string;
+  tags: string[];
+  approved: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const memoryKinds = new Set<OsidanMemoryKind>(['identity', 'preference', 'company', 'project', 'decision', 'checkpoint']);
+
+function getOsidanMemoryPath() {
+  const dataDir = process.env.RED_VISION_DATA_DIR || path.join(process.cwd(), '.red-vision-data');
+  return { dataDir, filePath: path.join(dataDir, 'osidan-memory.json') };
+}
+
+async function readOsidanMemory(): Promise<OsidanMemoryEntry[]> {
+  const { filePath } = getOsidanMemoryPath();
+  try {
+    const parsed = JSON.parse(await readFile(filePath, 'utf8'));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error: any) {
+    if (error?.code === 'ENOENT') return [];
+    throw error;
+  }
+}
+
+async function writeOsidanMemory(entries: OsidanMemoryEntry[]) {
+  const { dataDir, filePath } = getOsidanMemoryPath();
+  await mkdir(dataDir, { recursive: true });
+  const temporaryPath = `${filePath}.tmp`;
+  await writeFile(temporaryPath, JSON.stringify(entries, null, 2), { encoding: 'utf8', mode: 0o600 });
+  await rename(temporaryPath, filePath);
+}
+
+async function buildApprovedMemoryContext() {
+  const approved = (await readOsidanMemory()).filter((entry) => entry.approved);
+  if (!approved.length) return '';
+  const lines = approved.slice(0, 40).map((entry) => `- [${entry.kind}] ${entry.title}: ${entry.content}`);
+  return `\n\nOSIDAN APPROVED MEMORY (use only when relevant; never claim it came from the model provider):\n${lines.join('\n')}`;
 }
 
 // Turns a tiny setting word/phrase ("jungle", "Mediterranean studio") into one
@@ -159,6 +208,59 @@ async function startServer() {
 
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok', service: 'red-vision-ai-executive-suite' });
+  });
+
+  app.get('/api/memory', async (_req, res) => {
+    try {
+      const entries = await readOsidanMemory();
+      res.json({ entries, storage: 'local-osidan', sharedProviderMemory: false });
+    } catch (error) {
+      console.error('Failed to read Osidan memory:', error);
+      res.status(500).json({ error: 'Unable to read local memory.' });
+    }
+  });
+
+  app.post('/api/memory', async (req, res) => {
+    try {
+      const { kind, title, content, tags = [], approved = false } = req.body || {};
+      if (!memoryKinds.has(kind) || typeof title !== 'string' || typeof content !== 'string') {
+        return res.status(400).json({ error: 'A valid kind, title, and content are required.' });
+      }
+      const cleanTitle = title.trim().slice(0, 120);
+      const cleanContent = content.trim().slice(0, 4000);
+      if (!cleanTitle || !cleanContent) return res.status(400).json({ error: 'Title and content cannot be empty.' });
+      const now = new Date().toISOString();
+      const entry: OsidanMemoryEntry = {
+        id: randomUUID(),
+        kind,
+        title: cleanTitle,
+        content: cleanContent,
+        tags: Array.isArray(tags) ? tags.filter((tag): tag is string => typeof tag === 'string').slice(0, 12) : [],
+        approved: approved === true,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const entries = await readOsidanMemory();
+      entries.push(entry);
+      await writeOsidanMemory(entries);
+      res.status(201).json({ entry });
+    } catch (error) {
+      console.error('Failed to save Osidan memory:', error);
+      res.status(500).json({ error: 'Unable to save local memory.' });
+    }
+  });
+
+  app.delete('/api/memory/:id', async (req, res) => {
+    try {
+      const entries = await readOsidanMemory();
+      const filtered = entries.filter((entry) => entry.id !== req.params.id);
+      if (filtered.length === entries.length) return res.status(404).json({ error: 'Memory entry not found.' });
+      await writeOsidanMemory(filtered);
+      res.status(204).end();
+    } catch (error) {
+      console.error('Failed to delete Osidan memory:', error);
+      res.status(500).json({ error: 'Unable to delete local memory.' });
+    }
   });
 
   app.use('/api', (req, res, next) => {
@@ -519,11 +621,13 @@ Output ONLY the style brief text — no labels, no quotes, no preamble.`;
   // User provided endpoints for gemini-3.1-flash-lite-image and gemini-3.1-flash-lite
   app.post("/api/generate", async (req, res) => {
     try {
-      const { prompt } = req.body;
+      const { prompt, includeMemory = true } = req.body;
+      if (typeof prompt !== 'string' || !prompt.trim()) return res.status(400).json({ error: 'Prompt is required.' });
+      const memoryContext = includeMemory === false ? '' : await buildApprovedMemoryContext();
       const ai = getAiClient();
       const textResponse = await ai.models.generateContent({
         model: "gemini-3.1-flash-lite",
-        contents: prompt,
+        contents: `${prompt}${memoryContext}`,
         config: {
           systemInstruction: "You are an infinite spatial-knowledge-engine generator. Respond to the user's query by generating AI content in a specific JSON format. The format must contain: 'text' (AI-generated explanatory text detailing the topic. Use markdown if necessary, but keep it brief and impactful. CRITICAL: You MUST wrap 2 to 4 key concepts or interesting terms in your text as markdown links using the exact format `[Search Term](Search Term)`, so users can click them to branch off and explore that topic further!), and 'prompts' (an array of exactly 3 string items containing suggested follow-up questions or sub-topics). Keep text concise and informative.",
           responseMimeType: "application/json",
