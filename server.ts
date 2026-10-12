@@ -240,10 +240,10 @@ interface RoutedGenerateResult {
   provider: ProviderId;
 }
 
-const COMMAND_CENTER_SYSTEM_INSTRUCTION = \`You are a Red Vision HQ executive AI. Return strict JSON with:
+const COMMAND_CENTER_SYSTEM_INSTRUCTION = `You are a Red Vision HQ executive AI. Return strict JSON with:
 - "text": a concise, useful answer in Markdown. Wrap 2 to 4 key concepts as Markdown links using [Search Term](Search Term).
 - "prompts": exactly 3 useful follow-up questions.
-Never claim that work was executed, sent, published, filed, or completed unless the request includes a verifiable artifact or tool result.\`;
+Never claim that work was executed, sent, published, filed, or completed unless the request includes a verifiable artifact or tool result.`;
 
 function configuredProviders(): ProviderId[] {
   const available: ProviderId[] = [];
@@ -265,7 +265,7 @@ function routeProviders(prompt: string, requested: ProviderId | 'auto' = 'auto')
 }
 
 function normalizeRoutedJson(raw: string, provider: ProviderId): RoutedGenerateResult {
-  const cleaned = raw.replace(/\`\`\`(?:json)?/gi, '').replace(/\`\`\`/g, '').trim();
+  const cleaned = raw.replace(/```(?:json)?/gi, '').replace(/```/g, '').trim();
   let parsed: any;
   try {
     parsed = JSON.parse(cleaned);
@@ -319,7 +319,7 @@ async function generateCommandCenterResponse(provider: ProviderId, prompt: strin
         messages: [{ role: 'user', content: prompt }],
       }),
     });
-    if (!response.ok) throw new Error(\`Claude request failed with status \${response.status}.\`);
+    if (!response.ok) throw new Error(`Claude request failed with status ${response.status}.`);
     const data: any = await response.json();
     return normalizeRoutedJson(data.content?.map((item: any) => item.text || '').join('') || '{}', provider);
   }
@@ -328,7 +328,7 @@ async function generateCommandCenterResponse(provider: ProviderId, prompt: strin
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      authorization: \`Bearer \${process.env.PERPLEXITY_API_KEY || ''}\`,
+      authorization: `Bearer ${process.env.PERPLEXITY_API_KEY || ''}`,
     },
     body: JSON.stringify({
       model: process.env.PERPLEXITY_MODEL,
@@ -339,7 +339,7 @@ async function generateCommandCenterResponse(provider: ProviderId, prompt: strin
       ],
     }),
   });
-  if (!response.ok) throw new Error(\`Perplexity request failed with status \${response.status}.\`);
+  if (!response.ok) throw new Error(`Perplexity request failed with status ${response.status}.`);
   const data: any = await response.json();
   return normalizeRoutedJson(data.choices?.[0]?.message?.content || '{}', provider);
 }
@@ -818,17 +818,17 @@ Output ONLY the style brief text — no labels, no quotes, no preamble.`;
       const memoryContext = includeMemory === false ? '' : await buildApprovedMemoryContext();
       const routes = routeProviders(prompt, provider);
       if (!routes.length) {
-        return res.status(503).json({ error: provider === 'auto' ? 'No AI provider is configured.' : \`\${provider} is not configured.\` });
+        return res.status(503).json({ error: provider === 'auto' ? 'No AI provider is configured.' : `${provider} is not configured.` });
       }
 
       const failures: string[] = [];
       for (const route of routes) {
         try {
-          const result = await generateCommandCenterResponse(route, \`\${prompt}\${memoryContext}\`);
+          const result = await generateCommandCenterResponse(route, `${prompt}${memoryContext}`);
           return res.json({ ...result, memoryApplied: Boolean(memoryContext) });
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Unknown provider error.';
-          failures.push(\`\${route}: \${message}\`);
+          failures.push(`${route}: ${message}`);
           if (provider !== 'auto') break;
         }
       }
