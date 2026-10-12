@@ -210,6 +210,33 @@ async function startServer() {
     res.status(200).json({ status: 'ok', service: 'red-vision-ai-executive-suite' });
   });
 
+  app.get('/api/providers', (_req, res) => {
+    const providers = [
+      {
+        id: 'gemini',
+        name: 'Google Gemini',
+        configured: Boolean(process.env.GEMINI_API_KEY),
+        verified: false,
+        note: process.env.GEMINI_API_KEY ? 'Server credential detected. Run a live request to verify access.' : 'Set GEMINI_API_KEY on the server or desktop environment.',
+      },
+      {
+        id: 'claude',
+        name: 'Anthropic Claude',
+        configured: Boolean(process.env.ANTHROPIC_API_KEY),
+        verified: false,
+        note: process.env.ANTHROPIC_API_KEY ? 'Server credential detected; routing is not enabled yet.' : 'Set ANTHROPIC_API_KEY server-side to enable Claude routing.',
+      },
+      {
+        id: 'perplexity',
+        name: 'Perplexity',
+        configured: Boolean(process.env.PERPLEXITY_API_KEY),
+        verified: false,
+        note: process.env.PERPLEXITY_API_KEY ? 'Server credential detected; routing is not enabled yet.' : 'Set PERPLEXITY_API_KEY server-side to enable Perplexity routing.',
+      },
+    ];
+    res.json({ providers, secretsExposed: false });
+  });
+
   app.get('/api/memory', async (_req, res) => {
     try {
       const entries = await readOsidanMemory();
