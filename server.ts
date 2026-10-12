@@ -190,6 +190,49 @@ async function fileUriToBase64(uri: string): Promise<{ data: string; mimeType: s
   return { data: buffer.toString('base64'), mimeType: 'image/jpeg' };
 }
 
+
+type ProviderId = 'gemini' | 'claude' | 'perplexity';
+const providerVerification = new Map<ProviderId, { verified: boolean; checkedAt: string; error?: string }>();
+
+async function verifyProvider(provider: ProviderId) {
+  if (provider === 'gemini') {
+    if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not configured.');
+    const result = await getAiClient().models.generateContent({
+      model: 'gemini-3.1-flash-lite',
+      contents: 'Reply with exactly: RED_VISION_OK',
+    });
+    if (!result.text?.includes('RED_VISION_OK')) throw new Error('Gemini returned an unexpected verification response.');
+  } else if (provider === 'claude') {
+    if (!process.env.ANTHROPIC_API_KEY || !process.env.ANTHROPIC_MODEL) throw new Error('ANTHROPIC_API_KEY and ANTHROPIC_MODEL are required.');
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({ model: process.env.ANTHROPIC_MODEL, max_tokens: 16, messages: [{ role: 'user', content: 'Reply with exactly: RED_VISION_OK' }] }),
+    });
+    if (!response.ok) throw new Error(`Claude verification failed with status ${response.status}.`);
+    const data: any = await response.json();
+    const text = data.content?.map((item: any) => item.text || '').join('') || '';
+    if (!text.includes('RED_VISION_OK')) throw new Error('Claude returned an unexpected verification response.');
+  } else {
+    if (!process.env.PERPLEXITY_API_KEY || !process.env.PERPLEXITY_MODEL) throw new Error('PERPLEXITY_API_KEY and PERPLEXITY_MODEL are required.');
+    const response = await fetch('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${process.env.PERPLEXITY_API_KEY}` },
+      body: JSON.stringify({ model: process.env.PERPLEXITY_MODEL, max_tokens: 16, messages: [{ role: 'user', content: 'Reply with exactly: RED_VISION_OK' }] }),
+    });
+    if (!response.ok) throw new Error(`Perplexity verification failed with status ${response.status}.`);
+    const data: any = await response.json();
+    if (!data.choices?.[0]?.message?.content?.includes('RED_VISION_OK')) throw new Error('Perplexity returned an unexpected verification response.');
+  }
+  const status = { verified: true, checkedAt: new Date().toISOString() };
+  providerVerification.set(provider, status);
+  return status;
+}
+
 async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT || 3000);
@@ -211,30 +254,36 @@ async function startServer() {
   });
 
   app.get('/api/providers', (_req, res) => {
-    const providers = [
-      {
-        id: 'gemini',
-        name: 'Google Gemini',
-        configured: Boolean(process.env.GEMINI_API_KEY),
-        verified: false,
-        note: process.env.GEMINI_API_KEY ? 'Server credential detected. Run a live request to verify access.' : 'Set GEMINI_API_KEY on the server or desktop environment.',
-      },
-      {
-        id: 'claude',
-        name: 'Anthropic Claude',
-        configured: Boolean(process.env.ANTHROPIC_API_KEY),
-        verified: false,
-        note: process.env.ANTHROPIC_API_KEY ? 'Server credential detected; routing is not enabled yet.' : 'Set ANTHROPIC_API_KEY server-side to enable Claude routing.',
-      },
-      {
-        id: 'perplexity',
-        name: 'Perplexity',
-        configured: Boolean(process.env.PERPLEXITY_API_KEY),
-        verified: false,
-        note: process.env.PERPLEXITY_API_KEY ? 'Server credential detected; routing is not enabled yet.' : 'Set PERPLEXITY_API_KEY server-side to enable Perplexity routing.',
-      },
+    const definitions = [
+      { id: 'gemini' as ProviderId, name: 'Google Gemini', configured: Boolean(process.env.GEMINI_API_KEY), missing: 'Set GEMINI_API_KEY server-side.' },
+      { id: 'claude' as ProviderId, name: 'Anthropic Claude', configured: Boolean(process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_MODEL), missing: 'Set ANTHROPIC_API_KEY and ANTHROPIC_MODEL server-side.' },
+      { id: 'perplexity' as ProviderId, name: 'Perplexity', configured: Boolean(process.env.PERPLEXITY_API_KEY && process.env.PERPLEXITY_MODEL), missing: 'Set PERPLEXITY_API_KEY and PERPLEXITY_MODEL server-side.' },
     ];
+    const providers = definitions.map((definition) => {
+      const check = providerVerification.get(definition.id);
+      return {
+        id: definition.id,
+        name: definition.name,
+        configured: definition.configured,
+        verified: check?.verified === true,
+        checkedAt: check?.checkedAt || null,
+        note: check?.verified ? 'Live API request verified.' : definition.configured ? (check?.error || 'Credential detected; live verification has not passed yet.') : definition.missing,
+      };
+    });
     res.json({ providers, secretsExposed: false });
+  });
+
+  app.post('/api/providers/:id/verify', async (req, res) => {
+    const provider = req.params.id as ProviderId;
+    if (!['gemini', 'claude', 'perplexity'].includes(provider)) return res.status(404).json({ error: 'Unknown provider.' });
+    try {
+      const status = await verifyProvider(provider);
+      res.json({ provider, ...status });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Provider verification failed.';
+      providerVerification.set(provider, { verified: false, checkedAt: new Date().toISOString(), error: message });
+      res.status(503).json({ provider, verified: false, error: message });
+    }
   });
 
   app.get('/api/memory', async (_req, res) => {
