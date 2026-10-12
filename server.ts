@@ -233,6 +233,117 @@ async function verifyProvider(provider: ProviderId) {
   return status;
 }
 
+
+interface RoutedGenerateResult {
+  text: string;
+  prompts: string[];
+  provider: ProviderId;
+}
+
+const COMMAND_CENTER_SYSTEM_INSTRUCTION = \`You are a Red Vision HQ executive AI. Return strict JSON with:
+- "text": a concise, useful answer in Markdown. Wrap 2 to 4 key concepts as Markdown links using [Search Term](Search Term).
+- "prompts": exactly 3 useful follow-up questions.
+Never claim that work was executed, sent, published, filed, or completed unless the request includes a verifiable artifact or tool result.\`;
+
+function configuredProviders(): ProviderId[] {
+  const available: ProviderId[] = [];
+  if (process.env.GEMINI_API_KEY) available.push('gemini');
+  if (process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_MODEL) available.push('claude');
+  if (process.env.PERPLEXITY_API_KEY && process.env.PERPLEXITY_MODEL) available.push('perplexity');
+  return available;
+}
+
+function routeProviders(prompt: string, requested: ProviderId | 'auto' = 'auto'): ProviderId[] {
+  const available = configuredProviders();
+  if (requested !== 'auto') return available.includes(requested) ? [requested] : [];
+  const researchCue = /\b(latest|current|today|news|research|sources?|market|competitor|trend|verify)\b/i.test(prompt);
+  const buildCue = /\b(code|build|debug|strategy|plan|write|contract|campaign|analyze)\b/i.test(prompt);
+  const preferred: ProviderId = researchCue ? 'perplexity' : buildCue ? 'claude' : 'gemini';
+  return [preferred, 'gemini', 'claude', 'perplexity'].filter(
+    (provider, index, all): provider is ProviderId => available.includes(provider as ProviderId) && all.indexOf(provider) === index,
+  );
+}
+
+function normalizeRoutedJson(raw: string, provider: ProviderId): RoutedGenerateResult {
+  const cleaned = raw.replace(/\`\`\`(?:json)?/gi, '').replace(/\`\`\`/g, '').trim();
+  let parsed: any;
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch {
+    const candidate = cleaned.match(/\{[\s\S]*\}/)?.[0];
+    if (candidate) {
+      try { parsed = JSON.parse(candidate); } catch { parsed = null; }
+    }
+  }
+  const text = typeof parsed?.text === 'string' ? parsed.text : cleaned;
+  const prompts = Array.isArray(parsed?.prompts)
+    ? parsed.prompts.filter((item: unknown): item is string => typeof item === 'string').slice(0, 3)
+    : [];
+  while (prompts.length < 3) prompts.push(['What should we do next?', 'What risks should we check?', 'Turn this into an action plan.'][prompts.length]);
+  return { text, prompts, provider };
+}
+
+async function generateCommandCenterResponse(provider: ProviderId, prompt: string): Promise<RoutedGenerateResult> {
+  if (provider === 'gemini') {
+    const response = await getAiClient().models.generateContent({
+      model: process.env.GEMINI_TEXT_MODEL || 'gemini-3.1-flash-lite',
+      contents: prompt,
+      config: {
+        systemInstruction: COMMAND_CENTER_SYSTEM_INSTRUCTION,
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            text: { type: Type.STRING },
+            prompts: { type: Type.ARRAY, items: { type: Type.STRING } },
+          },
+          required: ['text', 'prompts'],
+        },
+      },
+    });
+    return normalizeRoutedJson(response.text || '{}', provider);
+  }
+
+  if (provider === 'claude') {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY || '',
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: process.env.ANTHROPIC_MODEL,
+        max_tokens: 1600,
+        system: COMMAND_CENTER_SYSTEM_INSTRUCTION,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+    if (!response.ok) throw new Error(\`Claude request failed with status \${response.status}.\`);
+    const data: any = await response.json();
+    return normalizeRoutedJson(data.content?.map((item: any) => item.text || '').join('') || '{}', provider);
+  }
+
+  const response = await fetch('https://api.perplexity.ai/chat/completions', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      authorization: \`Bearer \${process.env.PERPLEXITY_API_KEY || ''}\`,
+    },
+    body: JSON.stringify({
+      model: process.env.PERPLEXITY_MODEL,
+      max_tokens: 1600,
+      messages: [
+        { role: 'system', content: COMMAND_CENTER_SYSTEM_INSTRUCTION },
+        { role: 'user', content: prompt },
+      ],
+    }),
+  });
+  if (!response.ok) throw new Error(\`Perplexity request failed with status \${response.status}.\`);
+  const data: any = await response.json();
+  return normalizeRoutedJson(data.choices?.[0]?.message?.content || '{}', provider);
+}
+
 async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT || 3000);
@@ -694,40 +805,39 @@ Output ONLY the style brief text — no labels, no quotes, no preamble.`;
     }
   });
 
-  // User provided endpoints for gemini-3.1-flash-lite-image and gemini-3.1-flash-lite
+  // Provider-neutral Command Center generation. Auto routing prefers Perplexity for
+  // current research, Claude for planning/build work, and Gemini for general requests.
   app.post("/api/generate", async (req, res) => {
-    try {
-      const { prompt, includeMemory = true } = req.body;
-      if (typeof prompt !== 'string' || !prompt.trim()) return res.status(400).json({ error: 'Prompt is required.' });
-      const memoryContext = includeMemory === false ? '' : await buildApprovedMemoryContext();
-      const ai = getAiClient();
-      const textResponse = await ai.models.generateContent({
-        model: "gemini-3.1-flash-lite",
-        contents: `${prompt}${memoryContext}`,
-        config: {
-          systemInstruction: "You are an infinite spatial-knowledge-engine generator. Respond to the user's query by generating AI content in a specific JSON format. The format must contain: 'text' (AI-generated explanatory text detailing the topic. Use markdown if necessary, but keep it brief and impactful. CRITICAL: You MUST wrap 2 to 4 key concepts or interesting terms in your text as markdown links using the exact format `[Search Term](Search Term)`, so users can click them to branch off and explore that topic further!), and 'prompts' (an array of exactly 3 string items containing suggested follow-up questions or sub-topics). Keep text concise and informative.",
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              text: { type: Type.STRING },
-              prompts: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-              },
-            },
-            required: ["text", "prompts"],
-          },
-        },
-      });
+    const { prompt, includeMemory = true, provider = 'auto' } = req.body || {};
+    if (typeof prompt !== 'string' || !prompt.trim()) return res.status(400).json({ error: 'Prompt is required.' });
+    if (!['auto', 'gemini', 'claude', 'perplexity'].includes(provider)) {
+      return res.status(400).json({ error: 'Provider must be auto, gemini, claude, or perplexity.' });
+    }
 
-      let rawText = textResponse.text || "{}";
-      rawText = rawText.replace(/```(json)?/gi, '').trim();
-      const responseData = JSON.parse(rawText);
-      res.json(responseData);
-    } catch (error: any) {
-      console.error(error);
-      res.status(500).json({ error: "Failed to generate text content." });
+    try {
+      const memoryContext = includeMemory === false ? '' : await buildApprovedMemoryContext();
+      const routes = routeProviders(prompt, provider);
+      if (!routes.length) {
+        return res.status(503).json({ error: provider === 'auto' ? 'No AI provider is configured.' : \`\${provider} is not configured.\` });
+      }
+
+      const failures: string[] = [];
+      for (const route of routes) {
+        try {
+          const result = await generateCommandCenterResponse(route, \`\${prompt}\${memoryContext}\`);
+          return res.json({ ...result, memoryApplied: Boolean(memoryContext) });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Unknown provider error.';
+          failures.push(\`\${route}: \${message}\`);
+          if (provider !== 'auto') break;
+        }
+      }
+
+      console.error('All routed providers failed:', failures);
+      return res.status(502).json({ error: 'No configured provider completed the request.', providerErrors: failures });
+    } catch (error) {
+      console.error('Command Center generation failed:', error);
+      return res.status(500).json({ error: 'Failed to generate text content.' });
     }
   });
 
