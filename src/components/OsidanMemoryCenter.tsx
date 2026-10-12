@@ -50,6 +50,23 @@ export function OsidanMemoryCenter() {
 
   useEffect(() => { void refresh(); }, []);
 
+  const verifyProvider = async (id: string) => {
+    setBusy(true);
+    setMessage('');
+    try {
+      const response = await fetch(`/api/providers/${id}/verify`, { method: 'POST' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Provider verification failed.');
+      setMessage(`${id} passed a live API verification.`);
+      await refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Provider verification failed.');
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
     setBusy(true);
@@ -118,6 +135,13 @@ export function OsidanMemoryCenter() {
             <div className="mt-4 text-[11px] font-mono uppercase tracking-wider text-zinc-400">
               {provider.verified ? 'Verified live' : provider.configured ? 'Configured · not live-tested' : 'Not configured'}
             </div>
+            <button
+              onClick={() => void verifyProvider(provider.id)}
+              disabled={busy || !provider.configured}
+              className="mt-4 w-full rounded-lg border border-zinc-700 px-3 py-2 text-xs font-bold text-white hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Run live verification
+            </button>
           </div>
         ))}
       </section>
