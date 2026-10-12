@@ -38,9 +38,9 @@ export const VIRTUAL_STAFF_AGENTS: VirtualStaffAgent[] = [
     role: 'Head of B2B Sponsorships & Playlist Pitching',
     avatarIcon: Building2,
     avatarColor: 'from-red-600 to-red-950',
-    badge: '300M+ Contact B2B Database',
+    badge: 'B2B Campaign & Outreach Strategy',
     systemPrompt: 'You are Victor Vance, B2B Marketing Lead at Red Vision. You oversee festival booking pitches, brand sponsorship decks, Spotify curator outreach, and radio syndication.',
-    initialGreeting: 'Marketing engine is online. I have 300M+ verified festival, curator, and brand contacts loaded. Let’s outline your next promo campaign.'
+    initialGreeting: 'Marketing planning room is online. Connect an approved contact source before any outreach; meanwhile, let’s build your next promo campaign.'
   },
   {
     id: 'agent-engineering',
@@ -190,7 +190,7 @@ export function CollaborativeStaffChat({ currentUserAvatar }: CollaborativeStaff
         id: `ai-${Date.now()}`,
         senderId: targetAgent.id,
         senderName: targetAgent.name,
-        senderRole: targetAgent.role,
+        senderRole: `${targetAgent.role} · ${(data.provider || 'provider').toUpperCase()}`,
         department: targetAgent.department,
         avatarIcon: targetAgent.avatarIcon,
         text: aiReplyText,
