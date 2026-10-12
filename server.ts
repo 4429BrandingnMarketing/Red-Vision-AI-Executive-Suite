@@ -1,6 +1,8 @@
 import dotenv from 'dotenv';
 import express from 'express';
 import path from 'path';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type, Modality } from '@google/genai';
 
@@ -76,6 +78,53 @@ interface GenerateBody {
   atmosphereImages?: InlineImage[];
 }
 
+
+type OsidanMemoryKind = 'identity' | 'preference' | 'company' | 'project' | 'decision' | 'checkpoint';
+
+interface OsidanMemoryEntry {
+  id: string;
+  kind: OsidanMemoryKind;
+  title: string;
+  content: string;
+  tags: string[];
+  approved: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const memoryKinds = new Set<OsidanMemoryKind>(['identity', 'preference', 'company', 'project', 'decision', 'checkpoint']);
+
+function getOsidanMemoryPath() {
+  const dataDir = process.env.RED_VISION_DATA_DIR || path.join(process.cwd(), '.red-vision-data');
+  return { dataDir, filePath: path.join(dataDir, 'osidan-memory.json') };
+}
+
+async function readOsidanMemory(): Promise<OsidanMemoryEntry[]> {
+  const { filePath } = getOsidanMemoryPath();
+  try {
+    const parsed = JSON.parse(await readFile(filePath, 'utf8'));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error: any) {
+    if (error?.code === 'ENOENT') return [];
+    throw error;
+  }
+}
+
+async function writeOsidanMemory(entries: OsidanMemoryEntry[]) {
+  const { dataDir, filePath } = getOsidanMemoryPath();
+  await mkdir(dataDir, { recursive: true });
+  const temporaryPath = `${filePath}.tmp`;
+  await writeFile(temporaryPath, JSON.stringify(entries, null, 2), { encoding: 'utf8', mode: 0o600 });
+  await rename(temporaryPath, filePath);
+}
+
+async function buildApprovedMemoryContext() {
+  const approved = (await readOsidanMemory()).filter((entry) => entry.approved);
+  if (!approved.length) return '';
+  const lines = approved.slice(0, 40).map((entry) => `- [${entry.kind}] ${entry.title}: ${entry.content}`);
+  return `\n\nOSIDAN APPROVED MEMORY (use only when relevant; never claim it came from the model provider):\n${lines.join('\n')}`;
+}
+
 // Turns a tiny setting word/phrase ("jungle", "Mediterranean studio") into one
 // ~100-word natural-language image prompt for gemini-3.1-flash-lite-image: a clean, empty,
 // on-aesthetic product-environment shot with a clear staging surface.
@@ -141,6 +190,49 @@ async function fileUriToBase64(uri: string): Promise<{ data: string; mimeType: s
   return { data: buffer.toString('base64'), mimeType: 'image/jpeg' };
 }
 
+
+type ProviderId = 'gemini' | 'claude' | 'perplexity';
+const providerVerification = new Map<ProviderId, { verified: boolean; checkedAt: string; error?: string }>();
+
+async function verifyProvider(provider: ProviderId) {
+  if (provider === 'gemini') {
+    if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not configured.');
+    const result = await getAiClient().models.generateContent({
+      model: 'gemini-3.1-flash-lite',
+      contents: 'Reply with exactly: RED_VISION_OK',
+    });
+    if (!result.text?.includes('RED_VISION_OK')) throw new Error('Gemini returned an unexpected verification response.');
+  } else if (provider === 'claude') {
+    if (!process.env.ANTHROPIC_API_KEY || !process.env.ANTHROPIC_MODEL) throw new Error('ANTHROPIC_API_KEY and ANTHROPIC_MODEL are required.');
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({ model: process.env.ANTHROPIC_MODEL, max_tokens: 16, messages: [{ role: 'user', content: 'Reply with exactly: RED_VISION_OK' }] }),
+    });
+    if (!response.ok) throw new Error(`Claude verification failed with status ${response.status}.`);
+    const data: any = await response.json();
+    const text = data.content?.map((item: any) => item.text || '').join('') || '';
+    if (!text.includes('RED_VISION_OK')) throw new Error('Claude returned an unexpected verification response.');
+  } else {
+    if (!process.env.PERPLEXITY_API_KEY || !process.env.PERPLEXITY_MODEL) throw new Error('PERPLEXITY_API_KEY and PERPLEXITY_MODEL are required.');
+    const response = await fetch('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${process.env.PERPLEXITY_API_KEY}` },
+      body: JSON.stringify({ model: process.env.PERPLEXITY_MODEL, max_tokens: 16, messages: [{ role: 'user', content: 'Reply with exactly: RED_VISION_OK' }] }),
+    });
+    if (!response.ok) throw new Error(`Perplexity verification failed with status ${response.status}.`);
+    const data: any = await response.json();
+    if (!data.choices?.[0]?.message?.content?.includes('RED_VISION_OK')) throw new Error('Perplexity returned an unexpected verification response.');
+  }
+  const status = { verified: true, checkedAt: new Date().toISOString() };
+  providerVerification.set(provider, status);
+  return status;
+}
+
 async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT || 3000);
@@ -159,6 +251,92 @@ async function startServer() {
 
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok', service: 'red-vision-ai-executive-suite' });
+  });
+
+  app.get('/api/providers', (_req, res) => {
+    const definitions = [
+      { id: 'gemini' as ProviderId, name: 'Google Gemini', configured: Boolean(process.env.GEMINI_API_KEY), missing: 'Set GEMINI_API_KEY server-side.' },
+      { id: 'claude' as ProviderId, name: 'Anthropic Claude', configured: Boolean(process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_MODEL), missing: 'Set ANTHROPIC_API_KEY and ANTHROPIC_MODEL server-side.' },
+      { id: 'perplexity' as ProviderId, name: 'Perplexity', configured: Boolean(process.env.PERPLEXITY_API_KEY && process.env.PERPLEXITY_MODEL), missing: 'Set PERPLEXITY_API_KEY and PERPLEXITY_MODEL server-side.' },
+    ];
+    const providers = definitions.map((definition) => {
+      const check = providerVerification.get(definition.id);
+      return {
+        id: definition.id,
+        name: definition.name,
+        configured: definition.configured,
+        verified: check?.verified === true,
+        checkedAt: check?.checkedAt || null,
+        note: check?.verified ? 'Live API request verified.' : definition.configured ? (check?.error || 'Credential detected; live verification has not passed yet.') : definition.missing,
+      };
+    });
+    res.json({ providers, secretsExposed: false });
+  });
+
+  app.post('/api/providers/:id/verify', async (req, res) => {
+    const provider = req.params.id as ProviderId;
+    if (!['gemini', 'claude', 'perplexity'].includes(provider)) return res.status(404).json({ error: 'Unknown provider.' });
+    try {
+      const status = await verifyProvider(provider);
+      res.json({ provider, ...status });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Provider verification failed.';
+      providerVerification.set(provider, { verified: false, checkedAt: new Date().toISOString(), error: message });
+      res.status(503).json({ provider, verified: false, error: message });
+    }
+  });
+
+  app.get('/api/memory', async (_req, res) => {
+    try {
+      const entries = await readOsidanMemory();
+      res.json({ entries, storage: 'local-osidan', sharedProviderMemory: false });
+    } catch (error) {
+      console.error('Failed to read Osidan memory:', error);
+      res.status(500).json({ error: 'Unable to read local memory.' });
+    }
+  });
+
+  app.post('/api/memory', async (req, res) => {
+    try {
+      const { kind, title, content, tags = [], approved = false } = req.body || {};
+      if (!memoryKinds.has(kind) || typeof title !== 'string' || typeof content !== 'string') {
+        return res.status(400).json({ error: 'A valid kind, title, and content are required.' });
+      }
+      const cleanTitle = title.trim().slice(0, 120);
+      const cleanContent = content.trim().slice(0, 4000);
+      if (!cleanTitle || !cleanContent) return res.status(400).json({ error: 'Title and content cannot be empty.' });
+      const now = new Date().toISOString();
+      const entry: OsidanMemoryEntry = {
+        id: randomUUID(),
+        kind,
+        title: cleanTitle,
+        content: cleanContent,
+        tags: Array.isArray(tags) ? tags.filter((tag): tag is string => typeof tag === 'string').slice(0, 12) : [],
+        approved: approved === true,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const entries = await readOsidanMemory();
+      entries.push(entry);
+      await writeOsidanMemory(entries);
+      res.status(201).json({ entry });
+    } catch (error) {
+      console.error('Failed to save Osidan memory:', error);
+      res.status(500).json({ error: 'Unable to save local memory.' });
+    }
+  });
+
+  app.delete('/api/memory/:id', async (req, res) => {
+    try {
+      const entries = await readOsidanMemory();
+      const filtered = entries.filter((entry) => entry.id !== req.params.id);
+      if (filtered.length === entries.length) return res.status(404).json({ error: 'Memory entry not found.' });
+      await writeOsidanMemory(filtered);
+      res.status(204).end();
+    } catch (error) {
+      console.error('Failed to delete Osidan memory:', error);
+      res.status(500).json({ error: 'Unable to delete local memory.' });
+    }
   });
 
   app.use('/api', (req, res, next) => {
@@ -519,11 +697,13 @@ Output ONLY the style brief text — no labels, no quotes, no preamble.`;
   // User provided endpoints for gemini-3.1-flash-lite-image and gemini-3.1-flash-lite
   app.post("/api/generate", async (req, res) => {
     try {
-      const { prompt } = req.body;
+      const { prompt, includeMemory = true } = req.body;
+      if (typeof prompt !== 'string' || !prompt.trim()) return res.status(400).json({ error: 'Prompt is required.' });
+      const memoryContext = includeMemory === false ? '' : await buildApprovedMemoryContext();
       const ai = getAiClient();
       const textResponse = await ai.models.generateContent({
         model: "gemini-3.1-flash-lite",
-        contents: prompt,
+        contents: `${prompt}${memoryContext}`,
         config: {
           systemInstruction: "You are an infinite spatial-knowledge-engine generator. Respond to the user's query by generating AI content in a specific JSON format. The format must contain: 'text' (AI-generated explanatory text detailing the topic. Use markdown if necessary, but keep it brief and impactful. CRITICAL: You MUST wrap 2 to 4 key concepts or interesting terms in your text as markdown links using the exact format `[Search Term](Search Term)`, so users can click them to branch off and explore that topic further!), and 'prompts' (an array of exactly 3 string items containing suggested follow-up questions or sub-topics). Keep text concise and informative.",
           responseMimeType: "application/json",

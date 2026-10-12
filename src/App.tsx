@@ -13,7 +13,7 @@ import { Newsletter } from './components/Newsletter.js';
 import { Footer } from './components/Footer.js';
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<AppView>('funnel');
+  const [currentView, setCurrentView] = useState<AppView>('console');
   const [isVSLOpen, setIsVSLOpen] = useState(false);
 
   const handleLaunchConsole = () => {

@@ -126,7 +126,7 @@ export function CollaborativeStaffChat({ currentUserAvatar }: CollaborativeStaff
       senderRole: 'Chief Entertainment Attorney',
       department: 'Legal',
       avatarIcon: Shield,
-      text: 'I have finalized the master licensing agreement draft for the Midnight Echoes release. Copyrights and ISRC codes are locked.',
+      text: 'Legal planning workspace ready. No agreement, copyright filing, or ISRC action is complete until a document or external confirmation is attached.',
       timestamp: '10:02 AM',
       isAI: true
     }
@@ -172,7 +172,7 @@ export function CollaborativeStaffChat({ currentUserAvatar }: CollaborativeStaff
       // Determine which agent(s) respond
       const targetAgent = activeAgent || VIRTUAL_STAFF_AGENTS[Math.floor(Math.random() * VIRTUAL_STAFF_AGENTS.length)];
       
-      const promptContext = `System Instruction: ${targetAgent.systemPrompt}\nUser Query: "${userMsgText}"\nProvide a concise, highly professional executive response (2-3 sentences) outlining actionable steps, contract guidance, marketing stats, or technical deliverables.`;
+      const promptContext = `System Instruction: ${targetAgent.systemPrompt}\nUser Query: "${userMsgText}"\nProvide a concise, professional response. Clearly distinguish planning from completed work. Never claim a task was executed, sent, filed, published, generated, or completed unless the response includes a verifiable artifact or tool result. If no execution tool is available, state that limitation and provide the proposed next action.`;
 
       const res = await fetch('/api/generate', {
         method: 'POST',
@@ -181,7 +181,10 @@ export function CollaborativeStaffChat({ currentUserAvatar }: CollaborativeStaff
       });
 
       const data = await res.json();
-      const aiReplyText = data.text || `${targetAgent.name}: Executing task immediately under Red Vision standards. Detailed deliverable dispatched.`;
+      if (!res.ok || typeof data.text !== 'string' || !data.text.trim()) {
+        throw new Error(data.error || `Agent request failed with status ${res.status}`);
+      }
+      const aiReplyText = data.text.trim();
 
       const aiMsg: StaffChatMessage = {
         id: `ai-${Date.now()}`,
@@ -198,6 +201,16 @@ export function CollaborativeStaffChat({ currentUserAvatar }: CollaborativeStaff
       setMessages(prev => [...prev, aiMsg]);
     } catch (err) {
       console.error(err);
+      const failureMessage = err instanceof Error ? err.message : 'Unknown agent error';
+      setMessages(prev => [...prev, {
+        id: `system-${Date.now()}`,
+        senderId: 'system',
+        senderName: 'Command Center',
+        senderRole: 'Execution monitor',
+        text: `Task was not executed: ${failureMessage}. No deliverable was created or dispatched.`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isAI: true
+      }]);
     } finally {
       setIsTyping(false);
     }
@@ -215,10 +228,10 @@ export function CollaborativeStaffChat({ currentUserAvatar }: CollaborativeStaff
           <div>
             <h3 className="text-base font-extrabold text-white font-sans tracking-tight flex items-center gap-2">
               <span>Collaborative AI Staff Command Room</span>
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span className="w-2 h-2 rounded-full bg-amber-400" />
             </h3>
             <p className="text-xs font-mono text-zinc-400">
-              Direct real-time communication with your 6 virtual executive departments
+              Planning chat for 6 virtual departments · execution requires verified tools
             </p>
           </div>
         </div>

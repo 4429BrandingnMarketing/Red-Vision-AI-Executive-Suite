@@ -34,6 +34,8 @@ function startServer() {
       NODE_ENV: 'production',
       PORT: String(PORT),
       APP_DIST_PATH: path.join(app.getAppPath(), 'dist'),
+      HOST: '127.0.0.1',
+      RED_VISION_DATA_DIR: path.join(app.getPath('userData'), 'osidan'),
     },
     stdio: 'pipe',
     serviceName: 'Red Vision Desktop Server',
