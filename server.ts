@@ -1,7 +1,8 @@
 import dotenv from 'dotenv';
 import express from 'express';
 import path from 'path';
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, statfs, writeFile } from 'node:fs/promises';
+import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type, Modality } from '@google/genai';
@@ -128,6 +129,95 @@ async function buildApprovedMemoryContext() {
 // Turns a tiny setting word/phrase ("jungle", "Mediterranean studio") into one
 // ~100-word natural-language image prompt for gemini-3.1-flash-lite-image: a clean, empty,
 // on-aesthetic product-environment shot with a clear staging surface.
+
+type OperationsJobStatus = 'queued' | 'running' | 'blocked' | 'completed';
+
+interface OperationsLogEntry {
+  id: string;
+  at: string;
+  level: 'info' | 'success' | 'warning' | 'error';
+  message: string;
+}
+
+interface OperationsArtifact {
+  label: string;
+  url?: string;
+  description?: string;
+}
+
+interface OperationsJob {
+  id: string;
+  title: string;
+  description: string;
+  department: string;
+  assignedAgent: string;
+  status: OperationsJobStatus;
+  createdAt: string;
+  updatedAt: string;
+  logs: OperationsLogEntry[];
+  artifacts: OperationsArtifact[];
+}
+
+function getOperationsPath() {
+  const dataDir = process.env.RED_VISION_DATA_DIR || path.join(process.cwd(), '.red-vision-data');
+  return { dataDir, filePath: path.join(dataDir, 'operations-jobs.json') };
+}
+
+async function readOperationsJobs(): Promise<OperationsJob[]> {
+  const { filePath } = getOperationsPath();
+  try {
+    const parsed = JSON.parse(await readFile(filePath, 'utf8'));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error: any) {
+    if (error?.code === 'ENOENT') return [];
+    throw error;
+  }
+}
+
+async function writeOperationsJobs(jobs: OperationsJob[]) {
+  const { dataDir, filePath } = getOperationsPath();
+  await mkdir(dataDir, { recursive: true });
+  const temporaryPath = filePath + '.tmp';
+  await writeFile(temporaryPath, JSON.stringify(jobs, null, 2), { encoding: 'utf8', mode: 0o600 });
+  await rename(temporaryPath, filePath);
+}
+
+async function getHermesStatus() {
+  const baseUrl = (process.env.HERMES_GATEWAY_URL || 'http://127.0.0.1:18789').replace(/\/$/, '');
+  const checkedAt = new Date().toISOString();
+  try {
+    const response = await fetch(baseUrl + '/health', { signal: AbortSignal.timeout(1800) });
+    if (!response.ok) throw new Error('Health endpoint returned ' + response.status + '.');
+    return { online: true, checkedAt, baseUrl, note: 'Hermes gateway health endpoint responded.' };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Gateway did not respond.';
+    return { online: false, checkedAt, baseUrl, note: message };
+  }
+}
+
+async function getSystemTelemetry() {
+  let diskTotal = 0;
+  let diskFree = 0;
+  try {
+    const disk = await statfs(process.cwd());
+    diskTotal = Number(disk.blocks) * Number(disk.bsize);
+    diskFree = Number(disk.bavail) * Number(disk.bsize);
+  } catch {
+    // Disk telemetry is optional on unsupported filesystems.
+  }
+  const totalMemory = os.totalmem();
+  const freeMemory = os.freemem();
+  const load = os.loadavg()[0] || 0;
+  const cpuCount = Math.max(1, os.cpus().length);
+  return {
+    cpu: { loadPercent: Math.min(100, Math.round((load / cpuCount) * 100)), cores: cpuCount },
+    memory: { usedPercent: Math.round(((totalMemory - freeMemory) / totalMemory) * 100), totalBytes: totalMemory, freeBytes: freeMemory },
+    disk: { usedPercent: diskTotal ? Math.round(((diskTotal - diskFree) / diskTotal) * 100) : null, totalBytes: diskTotal || null, freeBytes: diskFree || null },
+    platform: { hostname: os.hostname(), type: os.type(), release: os.release(), arch: os.arch() },
+    checkedAt: new Date().toISOString(),
+  };
+}
+
 const ATMOSPHERE_DIRECTOR_SYSTEM_INSTRUCTION = `#Your Role
 
 You are an art director, prompt writer and **materials aestheticist** for the Omni product-image flow. A user types a tiny setting input — often a single word. You don't depict the place; you **translate it into premium materials, palette and light**, and return **one natural-language prompt (~100 words)** for Instant Ramen that yields a minimal, textural product-photography vignette: a gorgeous surface, simple planes, and clean space for a small product. Elite product-photographer's-portfolio quality.
@@ -362,6 +452,111 @@ async function startServer() {
 
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok', service: 'red-vision-ai-executive-suite' });
+  });
+
+
+  app.get('/api/operations', async (_req, res) => {
+    try {
+      const jobs = await readOperationsJobs();
+      res.json({ jobs, persistence: 'local', completionRequiresEvidence: true });
+    } catch (error) {
+      console.error('Failed to read operations jobs:', error);
+      res.status(500).json({ error: 'Unable to read operations jobs.' });
+    }
+  });
+
+  app.post('/api/operations', async (req, res) => {
+    try {
+      const { title, description = '', department = 'Operations', assignedAgent = 'ARCHON' } = req.body || {};
+      if (typeof title !== 'string' || !title.trim()) return res.status(400).json({ error: 'Job title is required.' });
+      const now = new Date().toISOString();
+      const job: OperationsJob = {
+        id: randomUUID(),
+        title: title.trim().slice(0, 160),
+        description: typeof description === 'string' ? description.trim().slice(0, 4000) : '',
+        department: typeof department === 'string' ? department.trim().slice(0, 80) : 'Operations',
+        assignedAgent: typeof assignedAgent === 'string' ? assignedAgent.trim().slice(0, 100) : 'ARCHON',
+        status: 'queued',
+        createdAt: now,
+        updatedAt: now,
+        logs: [{ id: randomUUID(), at: now, level: 'info', message: 'Job created. No external action has run yet.' }],
+        artifacts: [],
+      };
+      const jobs = await readOperationsJobs();
+      jobs.unshift(job);
+      await writeOperationsJobs(jobs);
+      res.status(201).json({ job });
+    } catch (error) {
+      console.error('Failed to create operations job:', error);
+      res.status(500).json({ error: 'Unable to create operations job.' });
+    }
+  });
+
+  app.patch('/api/operations/:id', async (req, res) => {
+    try {
+      const jobs = await readOperationsJobs();
+      const index = jobs.findIndex((job) => job.id === req.params.id);
+      if (index < 0) return res.status(404).json({ error: 'Job not found.' });
+      const status = req.body?.status as OperationsJobStatus;
+      if (!['queued', 'running', 'blocked', 'completed'].includes(status)) return res.status(400).json({ error: 'Valid status is required.' });
+      const artifact = req.body?.artifact as OperationsArtifact | undefined;
+      const hasEvidence = Boolean(
+        artifact && typeof artifact.label === 'string' && artifact.label.trim() &&
+        ((typeof artifact.url === 'string' && artifact.url.trim()) || (typeof artifact.description === 'string' && artifact.description.trim()))
+      );
+      if (status === 'completed' && !hasEvidence && jobs[index].artifacts.length === 0) {
+        return res.status(409).json({ error: 'Completion requires a verifiable artifact URL or evidence description.' });
+      }
+      const now = new Date().toISOString();
+      if (hasEvidence && artifact) {
+        jobs[index].artifacts.push({
+          label: artifact.label.trim().slice(0, 120),
+          url: typeof artifact.url === 'string' ? artifact.url.trim().slice(0, 1000) : undefined,
+          description: typeof artifact.description === 'string' ? artifact.description.trim().slice(0, 2000) : undefined,
+        });
+      }
+      jobs[index].status = status;
+      jobs[index].updatedAt = now;
+      jobs[index].logs.push({
+        id: randomUUID(),
+        at: now,
+        level: status === 'completed' ? 'success' : status === 'blocked' ? 'warning' : 'info',
+        message: status === 'completed' ? 'Completion recorded with evidence.' : 'Status changed to ' + status + '.',
+      });
+      await writeOperationsJobs(jobs);
+      res.json({ job: jobs[index] });
+    } catch (error) {
+      console.error('Failed to update operations job:', error);
+      res.status(500).json({ error: 'Unable to update operations job.' });
+    }
+  });
+
+  app.post('/api/operations/:id/logs', async (req, res) => {
+    try {
+      const jobs = await readOperationsJobs();
+      const index = jobs.findIndex((job) => job.id === req.params.id);
+      if (index < 0) return res.status(404).json({ error: 'Job not found.' });
+      const message = req.body?.message;
+      const level = req.body?.level;
+      if (typeof message !== 'string' || !message.trim()) return res.status(400).json({ error: 'Log message is required.' });
+      const safeLevel: OperationsLogEntry['level'] = ['info', 'success', 'warning', 'error'].includes(level) ? level : 'info';
+      const log = { id: randomUUID(), at: new Date().toISOString(), level: safeLevel, message: message.trim().slice(0, 2000) };
+      jobs[index].logs.push(log);
+      jobs[index].updatedAt = log.at;
+      await writeOperationsJobs(jobs);
+      res.status(201).json({ log });
+    } catch (error) {
+      console.error('Failed to append operations log:', error);
+      res.status(500).json({ error: 'Unable to append operations log.' });
+    }
+  });
+
+  app.get('/api/hermes/status', async (_req, res) => {
+    res.json(await getHermesStatus());
+  });
+
+  app.get('/api/system/telemetry', async (_req, res) => {
+    res.json(await getSystemTelemetry());
   });
 
   app.get('/api/providers', (_req, res) => {
