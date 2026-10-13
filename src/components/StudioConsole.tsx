@@ -41,6 +41,7 @@ import { VoiceoverEngine } from './VoiceoverEngine.js';
 import { AdAgencySystem } from './AdAgencySystem.js';
 import { OsidanMemoryCenter } from './OsidanMemoryCenter.js';
 import { RedVisionOffice } from './RedVisionOffice.js';
+import { OperationsMissionControl } from './OperationsMissionControl.js';
 
 type AppState = 'IDLE' | 'GENERATING_ATMOSPHERE' | 'GENERATING_PROMPT' | 'GENERATING_VIDEO' | 'VIDEO_READY';
 
@@ -721,6 +722,18 @@ export function StudioConsole() {
             </button>
 
             <button
+              onClick={() => setActiveTab('missions')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs font-bold uppercase tracking-wider transition-all ${
+                activeTab === 'missions'
+                  ? 'bg-gradient-to-r from-cyan-600 to-blue-700 text-white shadow-lg shadow-cyan-600/30'
+                  : 'text-cyan-400 hover:text-white hover:bg-zinc-900'
+              }`}
+            >
+              <ShieldCheck className="w-4 h-4" />
+              ARCHON Missions
+            </button>
+
+            <button
               onClick={() => setActiveTab('memory')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs font-bold uppercase tracking-wider transition-all ${
                 activeTab === 'memory'
@@ -876,6 +889,11 @@ export function StudioConsole() {
               : 'Red Vision AI Studio Master Generation Pipeline'
           }
         />
+
+        {/* OPERATIONS CORE: PERSISTENT MISSIONS, HERMES HEALTH & TELEMETRY */}
+        {activeTab === 'missions' && (
+          <OperationsMissionControl />
+        )}
 
         {/* TAB -3: ONE-PROMPT AI AD AGENCY OPERATING SYSTEM */}
         {activeTab === 'agency' && (
