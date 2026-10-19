@@ -4,7 +4,6 @@ import path from 'path';
 import { mkdir, readFile, rename, statfs, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
-import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type, Modality } from '@google/genai';
 
 function pcmToWavBuffer(pcmBase64: string, sampleRate = 24000, numChannels = 1, bitsPerSample = 16): Buffer {
@@ -1330,6 +1329,7 @@ The bundle must contain:
   });
 
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
