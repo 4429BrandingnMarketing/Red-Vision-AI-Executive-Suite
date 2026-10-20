@@ -490,7 +490,7 @@ export function StudioConsole() {
   }
 
   return (
-    <div className={`w-full bg-black min-h-screen py-10 font-sans transition-all ${
+    <div className={`rv-console-shell w-full bg-black min-h-screen py-10 font-sans transition-all ${
       isConsoleHighContrast ? 'contrast-125 bg-black text-white [&_*]:border-amber-400/80 [&_button]:focus:ring-2 [&_button]:focus:ring-amber-400' : ''
     }`}>
       <div className="mx-auto max-w-screen-2xl space-y-6 px-4 sm:px-6 lg:px-8">
@@ -503,7 +503,7 @@ export function StudioConsole() {
         />
 
         {/* Top Console Title & Tabs Bar */}
-        <div className="p-6 rounded-2xl bg-zinc-950/90 border border-red-500/30 shadow-2xl backdrop-blur-xl flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="rv-console-header p-6 rounded-2xl bg-zinc-950/90 border border-red-500/30 shadow-2xl backdrop-blur-xl flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 via-rose-600 to-red-900 p-0.5 shadow-lg shadow-red-600/30">
               <div className="w-full h-full bg-black rounded-[10px] flex items-center justify-center text-red-500">
@@ -542,7 +542,7 @@ export function StudioConsole() {
           </div>
 
           {/* Tab Selector */}
-          <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-xl bg-black/80 border border-zinc-800" role="tablist" aria-label="Studio Console Main Tabs">
+          <div className="rv-tab-rail flex flex-wrap items-center gap-2 p-1.5 rounded-xl bg-black/80 border border-zinc-800" role="tablist" aria-label="Studio Console Main Tabs">
             <button
               onClick={() => setActiveTab('agency')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs font-bold uppercase tracking-wider transition-all ${
