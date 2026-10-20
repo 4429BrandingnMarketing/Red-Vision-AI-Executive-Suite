@@ -492,7 +492,7 @@ export function StudioConsole() {
     <div className={`w-full bg-black min-h-screen py-10 font-sans transition-all ${
       isConsoleHighContrast ? 'contrast-125 bg-black text-white [&_*]:border-amber-400/80 [&_button]:focus:ring-2 [&_button]:focus:ring-amber-400' : ''
     }`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+      <div className="mx-auto max-w-screen-2xl space-y-6 px-4 sm:px-6 lg:px-8">
         
         {/* Global Omni-Search Bar */}
         <OmniSearchBar
