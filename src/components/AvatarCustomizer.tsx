@@ -55,7 +55,7 @@ export function AvatarCustomizer({ currentAvatar, onUpdateAvatar, onClose }: Ava
       await res.json();
 
       // Set updated avatar (using the user's latest refined image as base or active state)
-      const newAvatar = '/src/assets/images/jason_avatar_light_mustache_1784890643283.jpg';
+      const newAvatar = JASON_PORTRAIT_IMG;
       setPreviewAvatar(newAvatar);
       setHistory(prev => [newAvatar, ...prev]);
       onUpdateAvatar(newAvatar);

@@ -3,7 +3,7 @@ import {
   Music, Film, Calendar, Users, Key, Play, Pause, Volume2, Disc, Sparkles, 
   Plus, Check, X, Send, Shield, Loader2, ArrowRight, Download, Sliders, ChevronRight, Lock, Bot,
   LayoutGrid, TrendingUp, Zap, Eye, Box, Folder, UserPlus, ShieldCheck, Edit3, AlertCircle,
-  Terminal, Youtube, Share2, Github, Cpu, Flame, Mic, Contrast, Brain, Building2
+  Terminal, Youtube, Share2, Github, Cpu, Flame, Mic, Contrast, Brain, Building2, Radio, Tv, Globe, GraduationCap
 } from 'lucide-react';
 import { ConsoleTab, ReleaseItem, TeamMember, TeamMessage, AudioSynthResult, UserAccessRole, CollaboratorInvite, QuickStartTemplate } from '../types/index.js';
 import { INITIAL_RELEASES, TEAM_MEMBERS, INITIAL_MESSAGES, JASON_PORTRAIT_IMG, CLAY_STUDIO_IMG } from '../data/redVisionData.js';
@@ -14,7 +14,6 @@ import { PRODUCTS, ATMOSPHERES, MediaSelection } from '../data.js';
 import { toInlineImages, InlineImage } from '../images.js';
 import { AIStaffRoster } from './AIStaffRoster.js';
 import { AvatarCustomizer } from './AvatarCustomizer.js';
-import { CollaborativeStaffChat } from './CollaborativeStaffChat.js';
 import { CollaborativeCanvas } from './CollaborativeCanvas.js';
 import { AudioReactiveCoach } from './AudioReactiveCoach.js';
 import { AtAGlanceMetrics } from './AtAGlanceMetrics.js';
@@ -39,10 +38,13 @@ import { OmniSearchBar } from './OmniSearchBar.js';
 import { ProjectMilestoneGantt } from './ProjectMilestoneGantt.js';
 import { VoiceoverEngine } from './VoiceoverEngine.js';
 import { AdAgencySystem } from './AdAgencySystem.js';
+import { AgencyGrowthBuilder } from './AgencyGrowthBuilder.js';
 import { OsidanMemoryCenter } from './OsidanMemoryCenter.js';
 import { RedVisionOffice } from './RedVisionOffice.js';
 import { OperationsMissionControl } from './OperationsMissionControl.js';
 import { CommandMatrix } from './CommandMatrix.js';
+import { PodcastStudio, TelevisionStudio } from './ProductionStudioScreens.js';
+import { RedVisionUniversity } from './RedVisionUniversity.js';
 
 type AppState = 'IDLE' | 'GENERATING_ATMOSPHERE' | 'GENERATING_PROMPT' | 'GENERATING_VIDEO' | 'VIDEO_READY';
 
@@ -489,10 +491,10 @@ export function StudioConsole() {
   }
 
   return (
-    <div className={`w-full bg-black min-h-screen py-10 font-sans transition-all ${
+    <div className={`rv-console-shell w-full bg-black min-h-screen py-10 font-sans transition-all ${
       isConsoleHighContrast ? 'contrast-125 bg-black text-white [&_*]:border-amber-400/80 [&_button]:focus:ring-2 [&_button]:focus:ring-amber-400' : ''
     }`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+      <div className="mx-auto max-w-screen-2xl space-y-6 px-4 sm:px-6 lg:px-8">
         
         {/* Global Omni-Search Bar */}
         <OmniSearchBar
@@ -502,7 +504,7 @@ export function StudioConsole() {
         />
 
         {/* Top Console Title & Tabs Bar */}
-        <div className="p-6 rounded-2xl bg-zinc-950/90 border border-red-500/30 shadow-2xl backdrop-blur-xl flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="rv-console-header p-6 rounded-2xl bg-zinc-950/90 border border-red-500/30 shadow-2xl backdrop-blur-xl flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 via-rose-600 to-red-900 p-0.5 shadow-lg shadow-red-600/30">
               <div className="w-full h-full bg-black rounded-[10px] flex items-center justify-center text-red-500">
@@ -541,7 +543,7 @@ export function StudioConsole() {
           </div>
 
           {/* Tab Selector */}
-          <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-xl bg-black/80 border border-zinc-800" role="tablist" aria-label="Studio Console Main Tabs">
+          <div className="rv-tab-rail flex flex-wrap items-center gap-2 p-1.5 rounded-xl bg-black/80 border border-zinc-800" role="tablist" aria-label="Studio Console Main Tabs">
             <button
               onClick={() => setActiveTab('agency')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs font-bold uppercase tracking-wider transition-all ${
@@ -552,6 +554,18 @@ export function StudioConsole() {
             >
               <Zap className="w-4 h-4 text-amber-300 animate-pulse" />
               <span>AI Ad Agency OS (1-Prompt)</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('webgrowth')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs font-bold uppercase tracking-wider transition-all ${
+                activeTab === 'webgrowth'
+                  ? 'bg-gradient-to-r from-rose-600 to-red-600 text-white shadow-lg shadow-rose-600/30'
+                  : 'text-rose-300 hover:text-white hover:bg-zinc-900 border border-rose-500/30'
+              }`}
+            >
+              <Globe className="w-4 h-4" />
+              <span>Websites & Funnels</span>
             </button>
 
             <button
@@ -720,6 +734,42 @@ export function StudioConsole() {
             >
               <Building2 className="w-4 h-4" />
               HQ Office
+            </button>
+
+            <button
+              onClick={() => setActiveTab('university')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs font-bold uppercase tracking-wider transition-all ${
+                activeTab === 'university'
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-600/30'
+                  : 'text-amber-300 hover:text-white hover:bg-zinc-900 border border-amber-500/25'
+              }`}
+            >
+              <GraduationCap className="w-4 h-4" />
+              Red Vision University
+            </button>
+
+            <button
+              onClick={() => setActiveTab('radio')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs font-bold uppercase tracking-wider transition-all ${
+                activeTab === 'radio'
+                  ? 'bg-gradient-to-r from-cyan-700 to-indigo-700 text-white shadow-lg shadow-cyan-600/30'
+                  : 'text-cyan-200 hover:text-white hover:bg-zinc-900 border border-cyan-500/25'
+              }`}
+            >
+              <Radio className="w-4 h-4" />
+              Red Vision Radio
+            </button>
+
+            <button
+              onClick={() => setActiveTab('television')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs font-bold uppercase tracking-wider transition-all ${
+                activeTab === 'television'
+                  ? 'bg-gradient-to-r from-red-700 to-rose-700 text-white shadow-lg shadow-red-600/30'
+                  : 'text-rose-200 hover:text-white hover:bg-zinc-900 border border-rose-500/25'
+              }`}
+            >
+              <Tv className="w-4 h-4" />
+              Red Vision TV
             </button>
 
             <button
@@ -916,6 +966,10 @@ export function StudioConsole() {
         {/* TAB -3: ONE-PROMPT AI AD AGENCY OPERATING SYSTEM */}
         {activeTab === 'agency' && (
           <AdAgencySystem />
+        )}
+
+        {activeTab === 'webgrowth' && (
+          <AgencyGrowthBuilder />
         )}
 
         {/* TAB -2: QUICK START TEMPLATE LIBRARY */}
@@ -1436,8 +1490,14 @@ export function StudioConsole() {
 
         {/* RED VISION HQ OFFICE */}
         {activeTab === 'office' && (
-          <RedVisionOffice />
+          <RedVisionOffice onNavigate={setActiveTab} />
         )}
+
+        {activeTab === 'university' && <RedVisionUniversity />}
+
+        {activeTab === 'radio' && <PodcastStudio />}
+
+        {activeTab === 'television' && <TelevisionStudio />}
 
         {/* OSIDAN SHARED MEMORY CENTER */}
         {activeTab === 'memory' && (
@@ -1447,7 +1507,6 @@ export function StudioConsole() {
         {/* TAB 4: AI SPECIALIZED STAFF ROSTER & REAL-TIME COLLABORATIVE CHAT */}
         {activeTab === 'staff' && (
           <div className="space-y-8">
-            <CollaborativeStaffChat currentUserAvatar={currentUserAvatar} />
             <AIStaffRoster />
           </div>
         )}

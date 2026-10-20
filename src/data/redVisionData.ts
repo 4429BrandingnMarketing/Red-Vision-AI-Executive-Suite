@@ -1,19 +1,31 @@
 import { VSLScriptBeat, ReleaseItem, TeamMember, TeamMessage } from '../types/index.js';
+import jasonPortrait from '../assets/images/jason_avatar_light_mustache_1784890643283.jpg';
+import clayStudio from '../assets/images/jason_wide_slim_v4_1784887026570.jpg';
+import clayCalendar from '../assets/images/clay_release_calendar_1784777220728.jpg';
+import clayManifest from '../assets/images/clay_icon_manifest_1784780713717.jpg';
+import clayTouring from '../assets/images/clay_icon_touring_1784780723282.jpg';
+import clayStaff from '../assets/images/clay_icon_staff_1784780732352.jpg';
+import clayCinema from '../assets/images/clay_icon_cinema_1784780740568.jpg';
+import clayRecordingStudio from '../assets/images/recording_studio_clay_1784888491121.jpg';
+import clayFilmEditing from '../assets/images/film_editing_clay_1784888502082.jpg';
+import clayTourManager from '../assets/images/tour_manager_clay_1784888512033.jpg';
+import clayBookPublishing from '../assets/images/book_publishing_clay_1784888522025.jpg';
+import clayVirtualOffice from '../assets/images/virtual_3d_office_clay_1784888536048.jpg';
 
-export const JASON_PORTRAIT_IMG = '/src/assets/images/jason_avatar_light_mustache_1784890643283.jpg';
-export const CLAY_STUDIO_IMG = '/src/assets/images/jason_wide_slim_v4_1784887026570.jpg';
-export const CLAY_CALENDAR_IMG = '/src/assets/images/clay_release_calendar_1784777220728.jpg';
+export const JASON_PORTRAIT_IMG = jasonPortrait;
+export const CLAY_STUDIO_IMG = clayStudio;
+export const CLAY_CALENDAR_IMG = clayCalendar;
 
-export const CLAY_ICON_MANIFEST = '/src/assets/images/clay_icon_manifest_1784780713717.jpg';
-export const CLAY_ICON_TOURING = '/src/assets/images/clay_icon_touring_1784780723282.jpg';
-export const CLAY_ICON_STAFF = '/src/assets/images/clay_icon_staff_1784780732352.jpg';
-export const CLAY_ICON_CINEMA = '/src/assets/images/clay_icon_cinema_1784780740568.jpg';
+export const CLAY_ICON_MANIFEST = clayManifest;
+export const CLAY_ICON_TOURING = clayTouring;
+export const CLAY_ICON_STAFF = clayStaff;
+export const CLAY_ICON_CINEMA = clayCinema;
 
-export const CLAY_RECORDING_STUDIO_IMG = '/src/assets/images/recording_studio_clay_1784888491121.jpg';
-export const CLAY_FILM_EDITING_IMG = '/src/assets/images/film_editing_clay_1784888502082.jpg';
-export const CLAY_TOUR_MANAGER_IMG = '/src/assets/images/tour_manager_clay_1784888512033.jpg';
-export const CLAY_BOOK_PUBLISHING_IMG = '/src/assets/images/book_publishing_clay_1784888522025.jpg';
-export const CLAY_VIRTUAL_3D_OFFICE_IMG = '/src/assets/images/virtual_3d_office_clay_1784888536048.jpg';
+export const CLAY_RECORDING_STUDIO_IMG = clayRecordingStudio;
+export const CLAY_FILM_EDITING_IMG = clayFilmEditing;
+export const CLAY_TOUR_MANAGER_IMG = clayTourManager;
+export const CLAY_BOOK_PUBLISHING_IMG = clayBookPublishing;
+export const CLAY_VIRTUAL_3D_OFFICE_IMG = clayVirtualOffice;
 
 export interface StudioVisualSuite {
   id: string;
