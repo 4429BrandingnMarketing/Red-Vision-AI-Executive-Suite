@@ -5,6 +5,7 @@ import { mkdir, readFile, rename, statfs, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { GoogleGenAI, Type, Modality } from '@google/genai';
+import { DIVISION_EXECUTIVES } from './src/data/departmentExecutives.ts';
 
 function pcmToWavBuffer(pcmBase64: string, sampleRate = 24000, numChannels = 1, bitsPerSample = 16): Buffer {
   const pcmBuffer = Buffer.from(pcmBase64, 'base64');
@@ -93,6 +94,42 @@ interface OsidanMemoryEntry {
 }
 
 const memoryKinds = new Set<OsidanMemoryKind>(['identity', 'preference', 'company', 'project', 'decision', 'checkpoint']);
+
+const divisionExecutivesById = new Map(DIVISION_EXECUTIVES.map((executive) => [executive.id, executive]));
+
+function getHermesApiBaseUrl() {
+  const configuredUrl = process.env.HERMES_API_URL || 'http://127.0.0.1:8642';
+  const parsed = new URL(configuredUrl);
+  const localHosts = new Set(['127.0.0.1', 'localhost', '::1']);
+  if (parsed.protocol !== 'https:' && !(parsed.protocol === 'http:' && localHosts.has(parsed.hostname))) {
+    throw new Error('Hermes must use HTTPS unless it is running on this Mac.');
+  }
+  return parsed.toString().replace(/\/$/, '');
+}
+
+async function getHermesApiKey() {
+  if (process.env.HERMES_API_KEY) return process.env.HERMES_API_KEY;
+  try {
+    const hermesEnv = await readFile(path.join(os.homedir(), '.hermes', '.env'), 'utf8');
+    return dotenv.parse(hermesEnv).API_SERVER_KEY || '';
+  } catch {
+    return '';
+  }
+}
+
+async function callHermesApi(apiPath: string, init: RequestInit = {}) {
+  const apiKey = await getHermesApiKey();
+  if (!apiKey) throw new Error('Hermes API key is not configured.');
+  const baseUrl = getHermesApiBaseUrl();
+  return fetch(`${baseUrl}${apiPath}`, {
+    ...init,
+    headers: {
+      authorization: `Bearer ${apiKey}`,
+      ...(init.body ? { 'content-type': 'application/json' } : {}),
+      ...init.headers,
+    },
+  });
+}
 
 function getOsidanMemoryPath() {
   const dataDir = process.env.RED_VISION_DATA_DIR || path.join(process.cwd(), '.red-vision-data');
@@ -453,7 +490,6 @@ async function startServer() {
     res.status(200).json({ status: 'ok', service: 'red-vision-ai-executive-suite' });
   });
 
-
   app.get('/api/operations', async (_req, res) => {
     try {
       const jobs = await readOperationsJobs();
@@ -556,6 +592,108 @@ async function startServer() {
 
   app.get('/api/system/telemetry', async (_req, res) => {
     res.json(await getSystemTelemetry());
+  });
+
+  app.get('/api/hermes/api-status', async (_req, res) => {
+    if (!(await getHermesApiKey())) {
+      return res.json({ state: 'setup_required', message: 'Hermes API is not configured for Red Vision.' });
+    }
+    try {
+      const response = await callHermesApi('/v1/capabilities', { signal: AbortSignal.timeout(4000) });
+      if (response.status === 401) return res.json({ state: 'authentication_error', message: 'Red Vision could not authenticate with Hermes.' });
+      if (!response.ok) return res.json({ state: 'unavailable', message: `Hermes API returned status ${response.status}.` });
+      const capabilities: any = await response.json();
+      const runApiAvailable = Boolean(capabilities?.endpoints?.runs || capabilities?.features?.runs);
+      return res.json({
+        state: runApiAvailable ? 'online' : 'unavailable',
+        message: runApiAvailable
+          ? 'Hermes is connected and ready to coordinate missions.'
+          : 'Hermes responded, but its mission run API is not advertised as available.',
+        runApiAvailable,
+      });
+    } catch {
+      return res.json({ state: 'offline', message: 'Hermes could not be reached at its configured local address.' });
+    }
+  });
+
+  app.post('/api/hermes/runs', async (req, res) => {
+    const input = typeof req.body?.input === 'string' ? req.body.input.trim() : '';
+    const leadId = typeof req.body?.leadId === 'string' ? req.body.leadId : 'hermes';
+    const sessionId = typeof req.body?.sessionId === 'string' ? req.body.sessionId : '';
+    const requestId = typeof req.body?.requestId === 'string' ? req.body.requestId : '';
+    const executive = divisionExecutivesById.get(leadId);
+
+    if (!input || input.length > 20000) return res.status(400).json({ error: 'Enter a mission between 1 and 20,000 characters.' });
+    if (!executive) return res.status(400).json({ error: 'Select a valid Red Vision division lead.' });
+    if (!/^redvision_[a-zA-Z0-9_-]{8,96}$/.test(sessionId)) return res.status(400).json({ error: 'The Hermes session identifier is invalid.' });
+    if (!/^[a-zA-Z0-9_-]{16,128}$/.test(requestId)) return res.status(400).json({ error: 'The mission request identifier is invalid.' });
+
+    const instructions = [
+      'You are Hermes, the chief orchestrator for Jason Salvador and Red Vision Creative Studio. You run the show: receive each mission, decide the plan, coordinate the relevant division executive and available specialist agents, and report progress and results to Jason.',
+      'Red Vision operates across music and A&R; Pivot AI Tour Management; brand portfolio and marketing including 4429 Lifestyle + Marketing, Garbage Pail Kids, and The Visionary; Red Vision TV; Red Vision Radio; e-commerce and affiliates; AI products; and hosting and domains.',
+      `The selected division executive is ${executive.name} (${executive.role}, ${executive.department}). Bring this executive's field perspective to the mission: ${executive.focus}`,
+      'The user prefers low-cost and local options where they fit, including Ollama, NVIDIA NIM, OpenRouter, OpenCode, OmniRoute, and FreeLLMAPI. Use only providers and tools that Hermes reports as configured. Never describe a provider or operation as free without checking its current limits and terms.',
+      'Handle technical work autonomously when the available tools permit it. Use browser and computer tools only when available in the active Hermes profile. Be explicit about tool progress and failures. Never claim that research, a file, a message, a booking, a publication, or another action is complete without confirming it from a tool result or artifact.',
+      'Ask Jason for creative choices when they materially affect the result, or for approval before irreversible or externally consequential actions. Do not ask him to perform routine technical steps that you or a specialist can do.',
+    ].join('\n\n');
+
+    try {
+      const response = await callHermesApi('/v1/runs', {
+        method: 'POST',
+        signal: AbortSignal.timeout(15000),
+        headers: { 'idempotency-key': requestId },
+        body: JSON.stringify({ input, instructions, session_id: sessionId }),
+      });
+      if (!response.ok) {
+        console.warn(`Hermes mission admission failed with HTTP ${response.status}.`);
+        return res.status(response.status === 401 ? 503 : 502).json({ error: response.status === 401 ? 'Red Vision could not authenticate with Hermes.' : `Hermes could not accept the mission (HTTP ${response.status}).` });
+      }
+      const result: any = await response.json();
+      if (typeof result?.run_id !== 'string' || !result.run_id) return res.status(502).json({ error: 'Hermes did not return a mission run identifier.' });
+      return res.status(202).json({ runId: result.run_id, status: result.status || 'started' });
+    } catch {
+      return res.status(503).json({ error: 'Hermes is not reachable. No mission was started.' });
+    }
+  });
+
+  app.get('/api/hermes/runs/:runId/events', async (req, res) => {
+    const runId = req.params.runId;
+    if (!/^[a-zA-Z0-9_-]{1,128}$/.test(runId)) return res.status(400).json({ error: 'The Hermes run identifier is invalid.' });
+    const controller = new AbortController();
+    res.on('close', () => controller.abort());
+    try {
+      const response = await callHermesApi(`/v1/runs/${encodeURIComponent(runId)}/events`, { signal: controller.signal });
+      if (!response.ok || !response.body) return res.status(response.status || 502).json({ error: 'Could not open the Hermes mission stream.' });
+      res.status(200);
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache, no-transform');
+      res.setHeader('Connection', 'keep-alive');
+      res.flushHeaders();
+      for await (const chunk of response.body) {
+        if (res.destroyed) break;
+        if (!res.write(Buffer.from(chunk))) await new Promise<void>((resolve) => res.once('drain', resolve));
+      }
+      if (!res.destroyed) res.end();
+    } catch {
+      if (!res.headersSent) res.status(503).json({ error: 'Hermes mission stream disconnected.' });
+      else if (!res.destroyed) res.end();
+    }
+  });
+
+  app.post('/api/hermes/runs/:runId/stop', async (req, res) => {
+    const runId = req.params.runId;
+    if (!/^[a-zA-Z0-9_-]{1,128}$/.test(runId)) return res.status(400).json({ error: 'The Hermes run identifier is invalid.' });
+    try {
+      const response = await callHermesApi(`/v1/runs/${encodeURIComponent(runId)}/stop`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!response.ok) return res.status(502).json({ error: `Hermes could not stop the mission (HTTP ${response.status}).` });
+      return res.json({ stopped: true });
+    } catch {
+      return res.status(503).json({ error: 'Hermes is not reachable. The mission stop was not confirmed.' });
+    }
   });
 
   app.get('/api/providers', (_req, res) => {

@@ -14,6 +14,14 @@ This repository is in production-hardening. It is suitable for controlled develo
 4. Run `npm run dev`.
 5. Open `http://localhost:3000`.
 
+## Hermes executive office
+
+Hermes is the single orchestrator. The division executives in the app supply specialist context; they are not separate live models unless Hermes delegates to agents configured in its profile. The local app sends missions to the Hermes Agent API and shows the run stream and tool activity returned by Hermes.
+
+Enable and secure Hermes's API server in its own configuration before using missions. Red Vision defaults to `http://127.0.0.1:8642`, reads the API bearer key from `~/.hermes/.env` (`API_SERVER_KEY`), and accepts `HERMES_API_URL` / `HERMES_API_KEY` as server-side overrides. See the [Hermes API server guide](https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/features/api-server.md) for enabling the service. Keep the API bound to localhost for a local desktop setup; the key has access to Hermes tools and must never be exposed in browser code. The status indicator only reports connected after the API responds.
+
+The Hermes integration requires a locally running Red Vision server (the standalone desktop app provides this). A hosted Red Vision deployment cannot access a user's local Hermes service; it needs a separately secured Hermes endpoint reachable by that server.
+
 ## Standalone desktop app
 
 The desktop edition uses Electron and runs the Express API locally inside the app. Browser pages do not receive Node.js access.
@@ -22,7 +30,19 @@ The desktop edition uses Electron and runs the Express API locally inside the ap
 - `npm run desktop:dir` creates an unpacked desktop build for the current operating system.
 - `npm run desktop:mac` creates an Intel macOS DMG in `release/`.
 
-The GitHub `Desktop Build` workflow creates the Intel DMG manually or whenever a `desktop-v*` tag is pushed. The current build is unsigned; macOS distribution should add Apple Developer ID signing and notarization before public release.
+The GitHub `Desktop Build` workflow creates the Intel DMG manually or whenever a `desktop-v*` tag is pushed. It requires Apple Developer ID signing and notarization credentials and refuses to publish an unsigned DMG.
+
+### Configure signed macOS builds
+
+An active Apple Developer Program membership and a **Developer ID Application** certificate are required for distribution outside the Mac App Store. Export the certificate as a password-protected `.p12`, base64-encode it, and add these repository Actions secrets:
+
+- `MAC_CSC_LINK`: base64-encoded `.p12` certificate
+- `MAC_CSC_KEY_PASSWORD`: password used to export the certificate
+- `APPLE_ID`: Apple ID email
+- `APPLE_APP_SPECIFIC_PASSWORD`: app-specific password for notarization
+- `APPLE_TEAM_ID`: Apple Developer Team ID
+
+The workflow signs the app with Hardened Runtime, submits the app and DMG for notarization, staples the DMG ticket, and validates the resulting signature before uploading `red-vision-mac-intel`.
 
 ## Required release gate
 
