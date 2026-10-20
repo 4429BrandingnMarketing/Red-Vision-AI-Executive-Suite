@@ -163,10 +163,10 @@ export function PodcastStudio() {
 
         <aside className="space-y-6">
           <section className="bg-glass-card rounded-3xl p-5 sm:p-7">
-            <SectionHeading icon={Mic2} title="Bring in a guest" caption="Create a private, one-time meeting room link to send your guest." />
+            <SectionHeading icon={Mic2} title="Bring in a guest" caption="Create a fresh meeting room link to send your guest." />
             <button type="button" onClick={makeGuestRoom} className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[.06] px-4 text-sm font-semibold text-white hover:bg-white/10"><Radio className="h-4 w-4 text-cyan-200" />{inviteUrl ? 'Create a new guest room' : 'Create guest link'}</button>
             {inviteUrl && <div className="mt-4 space-y-3"><a href={inviteUrl} target="_blank" rel="noreferrer" className="block break-all rounded-xl border border-cyan-300/15 bg-black/40 p-3 text-sm leading-6 text-cyan-100 underline decoration-cyan-100/30 underline-offset-4">{inviteUrl}</a><button type="button" onClick={() => void copyGuestLink()} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-cyan-300/20 bg-cyan-300/[.06] text-sm font-semibold text-cyan-100 hover:bg-cyan-300/10">{copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}{copied ? 'Link copied' : 'Copy guest link'}</button></div>}
-            <div className="mt-4 rounded-xl border border-amber-300/15 bg-amber-300/[.045] p-3 text-xs leading-5 text-amber-100/80">Guest calls open in Jitsi Meet. Use a fresh room for each show and set a room password when you join before sharing the link widely. This creates a guest-call room; it does not yet send a Red Vision broadcast.</div>
+            <div className="mt-4 rounded-xl border border-amber-300/15 bg-amber-300/[.045] p-3 text-xs leading-5 text-amber-100/80">No password is added. This free Jitsi room link does not expire automatically, so anyone who has it may be able to reuse it. For a truly expiring guest link, Red Vision needs a meeting service configured to enforce link expiration. This guest call does not yet send a Red Vision broadcast.</div>
           </section>
 
           <section className="bg-glass-card rounded-3xl p-5 sm:p-7">

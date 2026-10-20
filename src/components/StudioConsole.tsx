@@ -3,7 +3,7 @@ import {
   Music, Film, Calendar, Users, Key, Play, Pause, Volume2, Disc, Sparkles, 
   Plus, Check, X, Send, Shield, Loader2, ArrowRight, Download, Sliders, ChevronRight, Lock, Bot,
   LayoutGrid, TrendingUp, Zap, Eye, Box, Folder, UserPlus, ShieldCheck, Edit3, AlertCircle,
-  Terminal, Youtube, Share2, Github, Cpu, Flame, Mic, Contrast, Brain, Building2, Radio, Tv
+  Terminal, Youtube, Share2, Github, Cpu, Flame, Mic, Contrast, Brain, Building2, Radio, Tv, Globe
 } from 'lucide-react';
 import { ConsoleTab, ReleaseItem, TeamMember, TeamMessage, AudioSynthResult, UserAccessRole, CollaboratorInvite, QuickStartTemplate } from '../types/index.js';
 import { INITIAL_RELEASES, TEAM_MEMBERS, INITIAL_MESSAGES, JASON_PORTRAIT_IMG, CLAY_STUDIO_IMG } from '../data/redVisionData.js';
@@ -38,6 +38,7 @@ import { OmniSearchBar } from './OmniSearchBar.js';
 import { ProjectMilestoneGantt } from './ProjectMilestoneGantt.js';
 import { VoiceoverEngine } from './VoiceoverEngine.js';
 import { AdAgencySystem } from './AdAgencySystem.js';
+import { AgencyGrowthBuilder } from './AgencyGrowthBuilder.js';
 import { OsidanMemoryCenter } from './OsidanMemoryCenter.js';
 import { RedVisionOffice } from './RedVisionOffice.js';
 import { OperationsMissionControl } from './OperationsMissionControl.js';
@@ -555,6 +556,18 @@ export function StudioConsole() {
             </button>
 
             <button
+              onClick={() => setActiveTab('webgrowth')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs font-bold uppercase tracking-wider transition-all ${
+                activeTab === 'webgrowth'
+                  ? 'bg-gradient-to-r from-rose-600 to-red-600 text-white shadow-lg shadow-rose-600/30'
+                  : 'text-rose-300 hover:text-white hover:bg-zinc-900 border border-rose-500/30'
+              }`}
+            >
+              <Globe className="w-4 h-4" />
+              <span>Websites & Funnels</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('templates')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs font-bold uppercase tracking-wider transition-all ${
                 activeTab === 'templates'
@@ -940,6 +953,10 @@ export function StudioConsole() {
         {/* TAB -3: ONE-PROMPT AI AD AGENCY OPERATING SYSTEM */}
         {activeTab === 'agency' && (
           <AdAgencySystem />
+        )}
+
+        {activeTab === 'webgrowth' && (
+          <AgencyGrowthBuilder />
         )}
 
         {/* TAB -2: QUICK START TEMPLATE LIBRARY */}

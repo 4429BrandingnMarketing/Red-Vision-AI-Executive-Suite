@@ -1,6 +1,6 @@
 export type AppView = 'funnel' | 'console';
 
-export type ConsoleTab = 'office' | 'matrix' | 'missions' | 'memory' | 'acoustic' | 'cinema' | 'radio' | 'television' | 'calendar' | 'staff' | 'canvas' | 'metrics' | 'team' | 'vr' | 'dashboard' | 'templates' | 'integrations' | 'youtube' | 'socials' | 'viralcred' | 'gantt' | 'voiceover' | 'agency';
+export type ConsoleTab = 'office' | 'matrix' | 'missions' | 'memory' | 'acoustic' | 'cinema' | 'radio' | 'television' | 'calendar' | 'staff' | 'canvas' | 'metrics' | 'team' | 'vr' | 'dashboard' | 'templates' | 'integrations' | 'youtube' | 'socials' | 'viralcred' | 'gantt' | 'voiceover' | 'agency' | 'webgrowth';
 
 export interface AdAgencyCampaign {
   id: string;
