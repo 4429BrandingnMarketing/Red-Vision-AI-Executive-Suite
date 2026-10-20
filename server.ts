@@ -669,9 +669,15 @@ async function startServer() {
       res.setHeader('Cache-Control', 'no-cache, no-transform');
       res.setHeader('Connection', 'keep-alive');
       res.flushHeaders();
-      for await (const chunk of response.body) {
-        if (res.destroyed) break;
-        if (!res.write(Buffer.from(chunk))) await new Promise<void>((resolve) => res.once('drain', resolve));
+      const reader = response.body.getReader();
+      try {
+        while (!res.destroyed) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          if (!res.write(Buffer.from(value))) await new Promise<void>((resolve) => res.once('drain', resolve));
+        }
+      } finally {
+        reader.releaseLock();
       }
       if (!res.destroyed) res.end();
     } catch {
