@@ -30,19 +30,7 @@ The desktop edition uses Electron and runs the Express API locally inside the ap
 - `npm run desktop:dir` creates an unpacked desktop build for the current operating system.
 - `npm run desktop:mac` creates an Intel macOS DMG in `release/`.
 
-The GitHub `Desktop Build` workflow creates the Intel DMG manually or whenever a `desktop-v*` tag is pushed. It requires Apple Developer ID signing and notarization credentials and refuses to publish an unsigned DMG.
-
-### Configure signed macOS builds
-
-An active Apple Developer Program membership and a **Developer ID Application** certificate are required for distribution outside the Mac App Store. Export the certificate as a password-protected `.p12`, base64-encode it, and add these repository Actions secrets:
-
-- `MAC_CSC_LINK`: base64-encoded `.p12` certificate
-- `MAC_CSC_KEY_PASSWORD`: password used to export the certificate
-- `APPLE_ID`: Apple ID email
-- `APPLE_APP_SPECIFIC_PASSWORD`: app-specific password for notarization
-- `APPLE_TEAM_ID`: Apple Developer Team ID
-
-The workflow signs the app with Hardened Runtime, submits the app and DMG for notarization, staples the DMG ticket, and validates the resulting signature before uploading `red-vision-mac-intel`.
+The GitHub `Desktop Build` workflow creates the Intel DMG manually, on `main`, on this feature branch, or whenever a `desktop-v*` tag is pushed. It uploads the unsigned installer as `red-vision-mac-intel`. As with prior builds, macOS Gatekeeper may show an unidentified-developer warning; this build does not require a paid Apple Developer membership.
 
 ## Required release gate
 
