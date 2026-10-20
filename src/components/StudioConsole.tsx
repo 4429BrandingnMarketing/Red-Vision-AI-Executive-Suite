@@ -3,7 +3,7 @@ import {
   Music, Film, Calendar, Users, Key, Play, Pause, Volume2, Disc, Sparkles, 
   Plus, Check, X, Send, Shield, Loader2, ArrowRight, Download, Sliders, ChevronRight, Lock, Bot,
   LayoutGrid, TrendingUp, Zap, Eye, Box, Folder, UserPlus, ShieldCheck, Edit3, AlertCircle,
-  Terminal, Youtube, Share2, Github, Cpu, Flame, Mic, Contrast, Brain, Building2, Radio, Tv, Globe
+  Terminal, Youtube, Share2, Github, Cpu, Flame, Mic, Contrast, Brain, Building2, Radio, Tv, Globe, GraduationCap
 } from 'lucide-react';
 import { ConsoleTab, ReleaseItem, TeamMember, TeamMessage, AudioSynthResult, UserAccessRole, CollaboratorInvite, QuickStartTemplate } from '../types/index.js';
 import { INITIAL_RELEASES, TEAM_MEMBERS, INITIAL_MESSAGES, JASON_PORTRAIT_IMG, CLAY_STUDIO_IMG } from '../data/redVisionData.js';
@@ -44,6 +44,7 @@ import { RedVisionOffice } from './RedVisionOffice.js';
 import { OperationsMissionControl } from './OperationsMissionControl.js';
 import { CommandMatrix } from './CommandMatrix.js';
 import { PodcastStudio, TelevisionStudio } from './ProductionStudioScreens.js';
+import { RedVisionUniversity } from './RedVisionUniversity.js';
 
 type AppState = 'IDLE' | 'GENERATING_ATMOSPHERE' | 'GENERATING_PROMPT' | 'GENERATING_VIDEO' | 'VIDEO_READY';
 
@@ -733,6 +734,18 @@ export function StudioConsole() {
             >
               <Building2 className="w-4 h-4" />
               HQ Office
+            </button>
+
+            <button
+              onClick={() => setActiveTab('university')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs font-bold uppercase tracking-wider transition-all ${
+                activeTab === 'university'
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-600/30'
+                  : 'text-amber-300 hover:text-white hover:bg-zinc-900 border border-amber-500/25'
+              }`}
+            >
+              <GraduationCap className="w-4 h-4" />
+              Red Vision University
             </button>
 
             <button
@@ -1479,6 +1492,8 @@ export function StudioConsole() {
         {activeTab === 'office' && (
           <RedVisionOffice onNavigate={setActiveTab} />
         )}
+
+        {activeTab === 'university' && <RedVisionUniversity />}
 
         {activeTab === 'radio' && <PodcastStudio />}
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Activity, ArrowUpRight, Bot, Building2, Code2, Film, Music2, Radio, RefreshCw, Shirt, Tv, Users } from 'lucide-react';
+import { Activity, ArrowUpRight, Bot, Building2, Code2, GraduationCap, Radio, RefreshCw, Shirt, Tv, Users } from 'lucide-react';
 import officeImage from '../assets/red-vision-office-hq.png';
 import type { ConsoleTab } from '../types/index.js';
 
@@ -18,6 +18,7 @@ const rooms: Array<{ name: string; detail: string; icon: React.ElementType; tab:
   { name: 'Command Matrix', detail: 'See agency divisions and the current operations snapshot.', icon: Building2, tab: 'matrix', accent: 'text-violet-300' },
   { name: 'AI Development Lab', detail: 'Review connected providers and technical integrations.', icon: Code2, tab: 'integrations', accent: 'text-blue-300' },
   { name: 'Fashion & Product Studio', detail: 'Plan product concepts and campaign creative.', icon: Shirt, tab: 'agency', accent: 'text-fuchsia-300' },
+  { name: 'Red Vision University', detail: 'Create practical courses, lessons, and learning plans.', icon: GraduationCap, tab: 'university', accent: 'text-amber-300' },
 ];
 
 export function RedVisionOffice({ onNavigate }: { onNavigate: (tab: ConsoleTab) => void }) {
@@ -76,8 +77,8 @@ export function RedVisionOffice({ onNavigate }: { onNavigate: (tab: ConsoleTab) 
         </div>
 
         <div className="grid gap-6 p-5 sm:p-8 xl:grid-cols-[1.25fr_.75fr]">
-          <div className="relative min-h-[360px] overflow-hidden rounded-2xl border border-white/10 bg-[#08090c] sm:min-h-[480px]">
-            <img src={officeImage} alt="Illustrated overhead view of the Red Vision creative studio headquarters" className="absolute inset-0 h-full w-full object-contain" />
+          <div className="relative aspect-square min-h-[360px] overflow-hidden rounded-2xl border border-white/10 bg-[#08090c] sm:min-h-[480px]">
+            <img src={officeImage} alt="Illustrated overhead view of the Red Vision creative studio headquarters" className="absolute inset-0 block h-full w-full object-contain object-center" />
             <div className="absolute left-4 top-4 rounded-full border border-white/15 bg-black/75 px-3 py-2 text-xs font-semibold text-white backdrop-blur-lg">HEADQUARTERS FLOOR PLAN</div>
             <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/75 p-3 backdrop-blur-lg">
               <span className="text-xs text-zinc-300">Select a department to open its live workspace</span>
