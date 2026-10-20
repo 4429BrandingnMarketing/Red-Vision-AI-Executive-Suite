@@ -103,10 +103,12 @@ export interface StaffChatMessage {
 
 interface CollaborativeStaffChatProps {
   currentUserAvatar?: string;
+  initialAgentId?: string;
+  conferenceMode?: boolean;
 }
 
-export function CollaborativeStaffChat({ currentUserAvatar }: CollaborativeStaffChatProps) {
-  const [selectedAgentId, setSelectedAgentId] = useState<string>('all');
+export function CollaborativeStaffChat({ currentUserAvatar, initialAgentId, conferenceMode = false }: CollaborativeStaffChatProps) {
+  const [selectedAgentId, setSelectedAgentId] = useState<string>(initialAgentId || (conferenceMode ? 'all' : 'all'));
   const [messages, setMessages] = useState<StaffChatMessage[]>([
     {
       id: 'm1',
@@ -153,7 +155,6 @@ export function CollaborativeStaffChat({ currentUserAvatar }: CollaborativeStaff
     const userMsgText = inputPrompt.trim();
     setInputPrompt('');
 
-    // Add user message
     const userMsg: StaffChatMessage = {
       id: `usr-${Date.now()}`,
       senderId: 'user-jason',
@@ -168,37 +169,47 @@ export function CollaborativeStaffChat({ currentUserAvatar }: CollaborativeStaff
     setMessages(prev => [...prev, userMsg]);
     setIsTyping(true);
 
+    const targetAgents = activeAgent ? [activeAgent] : VIRTUAL_STAFF_AGENTS;
     try {
-      // Determine which agent(s) respond
-      const targetAgent = activeAgent || VIRTUAL_STAFF_AGENTS[Math.floor(Math.random() * VIRTUAL_STAFF_AGENTS.length)];
-      
-      const promptContext = `System Instruction: ${targetAgent.systemPrompt}\nUser Query: "${userMsgText}"\nProvide a concise, professional response. Clearly distinguish planning from completed work. Never claim a task was executed, sent, filed, published, generated, or completed unless the response includes a verifiable artifact or tool result. If no execution tool is available, state that limitation and provide the proposed next action.`;
+      const results = await Promise.allSettled(targetAgents.map(async (targetAgent) => {
+        const promptContext = `System Instruction: ${targetAgent.systemPrompt}\nUser Query: "${userMsgText}"\n${activeAgent ? 'You are replying in a private one-to-one conversation.' : 'You are participating in the shared Red Vision conference room. Respond from your own professional perspective and build on the other departments when relevant.'}\nProvide a concise, professional response. Clearly distinguish planning from completed work. Never claim a task was executed, sent, filed, published, generated, or completed unless the response includes a verifiable artifact or tool result. If no execution tool is available, state that limitation and provide the proposed next action.`;
 
-      const res = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: promptContext })
-      });
+        const res = await fetch('/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: promptContext })
+        });
+        const data = await res.json();
+        if (!res.ok || typeof data.text !== 'string' || !data.text.trim()) {
+          throw new Error(data.error || `Agent request failed with status ${res.status}`);
+        }
+        return {
+          id: `ai-${targetAgent.id}-${Date.now()}`,
+          senderId: targetAgent.id,
+          senderName: targetAgent.name,
+          senderRole: `${targetAgent.role} · ${(data.provider || 'provider').toUpperCase()}`,
+          department: targetAgent.department,
+          avatarIcon: targetAgent.avatarIcon,
+          text: data.text.trim(),
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isAI: true
+        } as StaffChatMessage;
+      }));
 
-      const data = await res.json();
-      if (!res.ok || typeof data.text !== 'string' || !data.text.trim()) {
-        throw new Error(data.error || `Agent request failed with status ${res.status}`);
+      const replies = results.filter((result): result is PromiseFulfilledResult<StaffChatMessage> => result.status === 'fulfilled').map(result => result.value);
+      const failures = results.filter(result => result.status === 'rejected');
+      if (replies.length) setMessages(prev => [...prev, ...replies]);
+      if (failures.length) {
+        setMessages(prev => [...prev, {
+          id: `system-${Date.now()}`,
+          senderId: 'system',
+          senderName: 'Command Center',
+          senderRole: 'Execution monitor',
+          text: `${failures.length} staff response(s) could not be generated. No external action was taken by those agents.`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isAI: true
+        }]);
       }
-      const aiReplyText = data.text.trim();
-
-      const aiMsg: StaffChatMessage = {
-        id: `ai-${Date.now()}`,
-        senderId: targetAgent.id,
-        senderName: targetAgent.name,
-        senderRole: `${targetAgent.role} · ${(data.provider || 'provider').toUpperCase()}`,
-        department: targetAgent.department,
-        avatarIcon: targetAgent.avatarIcon,
-        text: aiReplyText,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isAI: true
-      };
-
-      setMessages(prev => [...prev, aiMsg]);
     } catch (err) {
       console.error(err);
       const failureMessage = err instanceof Error ? err.message : 'Unknown agent error';
