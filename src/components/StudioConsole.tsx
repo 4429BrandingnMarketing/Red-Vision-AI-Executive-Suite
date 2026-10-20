@@ -3,7 +3,7 @@ import {
   Music, Film, Calendar, Users, Key, Play, Pause, Volume2, Disc, Sparkles, 
   Plus, Check, X, Send, Shield, Loader2, ArrowRight, Download, Sliders, ChevronRight, Lock, Bot,
   LayoutGrid, TrendingUp, Zap, Eye, Box, Folder, UserPlus, ShieldCheck, Edit3, AlertCircle,
-  Terminal, Youtube, Share2, Github, Cpu, Flame, Mic, Contrast, Brain, Building2
+  Terminal, Youtube, Share2, Github, Cpu, Flame, Mic, Contrast, Brain, Building2, Radio, Tv
 } from 'lucide-react';
 import { ConsoleTab, ReleaseItem, TeamMember, TeamMessage, AudioSynthResult, UserAccessRole, CollaboratorInvite, QuickStartTemplate } from '../types/index.js';
 import { INITIAL_RELEASES, TEAM_MEMBERS, INITIAL_MESSAGES, JASON_PORTRAIT_IMG, CLAY_STUDIO_IMG } from '../data/redVisionData.js';
@@ -14,7 +14,6 @@ import { PRODUCTS, ATMOSPHERES, MediaSelection } from '../data.js';
 import { toInlineImages, InlineImage } from '../images.js';
 import { AIStaffRoster } from './AIStaffRoster.js';
 import { AvatarCustomizer } from './AvatarCustomizer.js';
-import { CollaborativeStaffChat } from './CollaborativeStaffChat.js';
 import { CollaborativeCanvas } from './CollaborativeCanvas.js';
 import { AudioReactiveCoach } from './AudioReactiveCoach.js';
 import { AtAGlanceMetrics } from './AtAGlanceMetrics.js';
@@ -43,6 +42,7 @@ import { OsidanMemoryCenter } from './OsidanMemoryCenter.js';
 import { RedVisionOffice } from './RedVisionOffice.js';
 import { OperationsMissionControl } from './OperationsMissionControl.js';
 import { CommandMatrix } from './CommandMatrix.js';
+import { PodcastStudio, TelevisionStudio } from './ProductionStudioScreens.js';
 
 type AppState = 'IDLE' | 'GENERATING_ATMOSPHERE' | 'GENERATING_PROMPT' | 'GENERATING_VIDEO' | 'VIDEO_READY';
 
@@ -720,6 +720,30 @@ export function StudioConsole() {
             >
               <Building2 className="w-4 h-4" />
               HQ Office
+            </button>
+
+            <button
+              onClick={() => setActiveTab('radio')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs font-bold uppercase tracking-wider transition-all ${
+                activeTab === 'radio'
+                  ? 'bg-gradient-to-r from-cyan-700 to-indigo-700 text-white shadow-lg shadow-cyan-600/30'
+                  : 'text-cyan-200 hover:text-white hover:bg-zinc-900 border border-cyan-500/25'
+              }`}
+            >
+              <Radio className="w-4 h-4" />
+              Red Vision Radio
+            </button>
+
+            <button
+              onClick={() => setActiveTab('television')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xs font-bold uppercase tracking-wider transition-all ${
+                activeTab === 'television'
+                  ? 'bg-gradient-to-r from-red-700 to-rose-700 text-white shadow-lg shadow-red-600/30'
+                  : 'text-rose-200 hover:text-white hover:bg-zinc-900 border border-rose-500/25'
+              }`}
+            >
+              <Tv className="w-4 h-4" />
+              Red Vision TV
             </button>
 
             <button
@@ -1436,8 +1460,12 @@ export function StudioConsole() {
 
         {/* RED VISION HQ OFFICE */}
         {activeTab === 'office' && (
-          <RedVisionOffice />
+          <RedVisionOffice onNavigate={setActiveTab} />
         )}
+
+        {activeTab === 'radio' && <PodcastStudio />}
+
+        {activeTab === 'television' && <TelevisionStudio />}
 
         {/* OSIDAN SHARED MEMORY CENTER */}
         {activeTab === 'memory' && (
@@ -1447,7 +1475,6 @@ export function StudioConsole() {
         {/* TAB 4: AI SPECIALIZED STAFF ROSTER & REAL-TIME COLLABORATIVE CHAT */}
         {activeTab === 'staff' && (
           <div className="space-y-8">
-            <CollaborativeStaffChat currentUserAvatar={currentUserAvatar} />
             <AIStaffRoster />
           </div>
         )}

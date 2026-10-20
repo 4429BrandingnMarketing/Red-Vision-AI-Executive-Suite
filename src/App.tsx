@@ -11,6 +11,8 @@ import { VSLModal } from './components/VSLModal.js';
 import { StudioConsole } from './components/StudioConsole.js';
 import { Newsletter } from './components/Newsletter.js';
 import { Footer } from './components/Footer.js';
+import { ExecutiveAssistantDock } from './components/ExecutiveAssistantDock.js';
+import { ReadableTextControl } from './components/ReadableTextControl.js';
 
 export default function App() {
   const [currentView, setCurrentView] = useState<AppView>('console');
@@ -79,6 +81,9 @@ export default function App() {
         onClose={() => setIsVSLOpen(false)}
         onLaunchConsole={handleLaunchConsole}
       />
+
+      <ExecutiveAssistantDock />
+      <ReadableTextControl />
     </div>
   );
 }
