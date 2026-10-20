@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Activity, ArrowLeft, Check, Clock3, Copy, Film, Headphones, Mic2, Play, Radio, RotateCcw, Send, Sparkles, Tv, WandSparkles, Waves } from 'lucide-react';
+import { Activity, ArrowLeft, Check, Clock3, Copy, Download, Film, Headphones, Mic2, Play, Radio, RotateCcw, Send, Sparkles, Tv, WandSparkles, Waves } from 'lucide-react';
 
 type RundownSegment = { title: string; minutes: number };
 
@@ -238,6 +238,7 @@ export function TelevisionStudio() {
         </div>
 
         <aside className="space-y-6">
+          <TrailerMaker />
           <section className="bg-glass-card rounded-3xl p-5 sm:p-7">
             <SectionHeading icon={Tv} title="Choose a backdrop" caption="Switch the virtual scene for the type of show you are making." />
             <div className="mt-5 space-y-3">{tvScenes.map(({ id, name, description, style, icon: Icon }) => <button key={id} type="button" onClick={() => setSceneId(id)} className={`group w-full overflow-hidden rounded-2xl border text-left transition ${sceneId === id ? 'border-cyan-200/40 ring-1 ring-cyan-200/20' : 'border-white/10 hover:border-white/25'}`}><span className={`flex h-20 items-center justify-between bg-gradient-to-r ${style} px-4`}><span className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-black/30 text-white"><Icon className="h-5 w-5" /></span><span><span className="block text-sm font-semibold text-white">{name}</span><span className="mt-1 block text-xs text-white/60">{description}</span></span></span>{sceneId === id && <span className="rounded-full bg-cyan-100/15 p-1.5 text-cyan-100"><Check className="h-3.5 w-3.5" /></span>}</span></button>)}</div>
@@ -250,6 +251,60 @@ export function TelevisionStudio() {
         </aside>
       </div>
     </StudioShell>
+  );
+}
+
+function TrailerMaker() {
+  const [title, setTitle] = useState('The Red Vision Story');
+  const [genre, setGenre] = useState('Cinematic documentary');
+  const [duration, setDuration] = useState('60 seconds');
+  const [tone, setTone] = useState('Bold, emotional, and inspiring');
+  const [draft, setDraft] = useState('Your trailer script and shot-by-shot plan will appear here.');
+  const [writing, setWriting] = useState(false);
+  const [error, setError] = useState('');
+
+  const createTrailer = async () => {
+    setWriting(true);
+    setError('');
+    try {
+      const result = await generateOutline(`Create a ${duration} trailer production plan for "${title}". Genre/style: ${genre}. Tone: ${tone}. Deliver: (1) a strong opening hook, (2) a timed shot-by-shot sequence with visual direction, voiceover or dialogue, on-screen text, and sound/music cues, (3) a rising midpoint, (4) a memorable final image, and (5) a clear end-card call to action. Keep all shots practical to create. Do not invent awards, reviews, real events, cast, plot details, or factual claims; use [ADD APPROVED DETAIL] placeholders wherever needed. Label the output as a draft for review.`);
+      setDraft(result);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'The trailer plan could not be created.');
+    } finally {
+      setWriting(false);
+    }
+  };
+
+  const copyDraft = async () => {
+    try { await navigator.clipboard.writeText(draft); }
+    catch { setError('Copy is unavailable here. Select the trailer plan text to copy it.'); }
+  };
+
+  const downloadDraft = () => {
+    const url = URL.createObjectURL(new Blob([draft], { type: 'text/markdown;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'trailer'}-trailer-plan.md`;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  return (
+    <section className="bg-glass-card rounded-3xl p-5 sm:p-7">
+      <SectionHeading icon={Film} title="Trailer Maker" caption="Create the hook, voiceover, shot list, and end card for a cinematic trailer." />
+      <label className="mt-5 block text-sm font-semibold text-zinc-300">Project title<input value={title} onChange={(event) => setTitle(event.target.value)} className="mt-2 min-h-11 w-full rounded-xl border border-white/10 bg-black/40 px-3 text-sm text-white outline-none focus:border-rose-300/40" /></label>
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        <label className="block text-sm font-semibold text-zinc-300">Style<select value={genre} onChange={(event) => setGenre(event.target.value)} className="mt-2 min-h-11 w-full rounded-xl border border-white/10 bg-[#101116] px-3 text-sm text-white outline-none focus:border-rose-300/40"><option>Cinematic documentary</option><option>Feature film</option><option>Music video</option><option>Sports event</option><option>Daytime show</option><option>News special</option></select></label>
+        <label className="block text-sm font-semibold text-zinc-300">Length<select value={duration} onChange={(event) => setDuration(event.target.value)} className="mt-2 min-h-11 w-full rounded-xl border border-white/10 bg-[#101116] px-3 text-sm text-white outline-none focus:border-rose-300/40"><option>30 seconds</option><option>60 seconds</option><option>90 seconds</option><option>2 minutes</option></select></label>
+      </div>
+      <label className="mt-3 block text-sm font-semibold text-zinc-300">Creative direction<input value={tone} onChange={(event) => setTone(event.target.value)} className="mt-2 min-h-11 w-full rounded-xl border border-white/10 bg-black/40 px-3 text-sm text-white outline-none focus:border-rose-300/40" /></label>
+      <button type="button" onClick={() => void createTrailer()} disabled={writing || !title.trim()} className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 px-4 text-sm font-bold text-white shadow-lg shadow-rose-950/30 transition hover:brightness-110 disabled:opacity-50"><Sparkles className="h-4 w-4" />{writing ? 'Creating trailer plan…' : 'Create trailer plan'}</button>
+      <div className="mt-4 max-h-[420px] min-h-40 overflow-y-auto whitespace-pre-wrap rounded-2xl border border-white/[.08] bg-black/35 p-4 text-sm leading-7 text-zinc-200">{draft}</div>
+      <div className="mt-3 flex gap-2"><button type="button" onClick={() => void copyDraft()} className="flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 text-sm font-semibold text-zinc-200 hover:bg-white/[.05]"><Copy className="h-4 w-4" />Copy plan</button><button type="button" onClick={downloadDraft} className="flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-rose-300/20 bg-rose-300/[.06] text-sm font-semibold text-rose-100 hover:bg-rose-300/10"><Download className="h-4 w-4" />Download</button></div>
+      {error && <p role="status" className="mt-3 text-sm text-amber-200">{error}</p>}
+      <p className="mt-3 text-xs leading-5 text-zinc-500">This creates a production-ready script and plan. Build the finished video in Motion Cinema; review all factual details and rights before publishing.</p>
+    </section>
   );
 }
 
