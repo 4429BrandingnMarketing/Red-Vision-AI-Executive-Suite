@@ -17,9 +17,20 @@ html[data-rv-text-size] [class~="text-[9px]"],
 html[data-rv-text-size] [class~="text-[10px]"],
 html[data-rv-text-size] [class~="text-[11px]"],
 html[data-rv-text-size] [class~="text-[12px]"] {
-  font-size: max(12px, 0.68rem) !important;
+  font-size: max(12px, calc(0.68rem * var(--rv-text-scale, 1))) !important;
   line-height: 1.3 !important;
 }
+
+html[data-rv-text-size] :is(.text-xs, [class~="sm:text-xs"], [class~="md:text-xs"], [class~="lg:text-xs"], [class~="xl:text-xs"]) { font-size: calc(.75rem * var(--rv-text-scale, 1)) !important; }
+html[data-rv-text-size] :is(.text-sm, [class~="sm:text-sm"], [class~="md:text-sm"], [class~="lg:text-sm"], [class~="xl:text-sm"]) { font-size: calc(.875rem * var(--rv-text-scale, 1)) !important; }
+html[data-rv-text-size] :is(.text-base, [class~="sm:text-base"], [class~="md:text-base"], [class~="lg:text-base"], [class~="xl:text-base"]) { font-size: calc(1rem * var(--rv-text-scale, 1)) !important; }
+html[data-rv-text-size] :is(.text-lg, [class~="sm:text-lg"], [class~="md:text-lg"], [class~="lg:text-lg"], [class~="xl:text-lg"]) { font-size: calc(1.125rem * var(--rv-text-scale, 1)) !important; }
+html[data-rv-text-size] :is(.text-xl, [class~="sm:text-xl"], [class~="md:text-xl"], [class~="lg:text-xl"], [class~="xl:text-xl"]) { font-size: calc(1.25rem * var(--rv-text-scale, 1)) !important; }
+html[data-rv-text-size] :is(.text-2xl, [class~="sm:text-2xl"], [class~="md:text-2xl"], [class~="lg:text-2xl"], [class~="xl:text-2xl"]) { font-size: calc(1.5rem * var(--rv-text-scale, 1)) !important; }
+html[data-rv-text-size] :is(.text-3xl, [class~="sm:text-3xl"], [class~="md:text-3xl"], [class~="lg:text-3xl"], [class~="xl:text-3xl"]) { font-size: calc(1.875rem * var(--rv-text-scale, 1)) !important; }
+html[data-rv-text-size] :is(.text-4xl, [class~="sm:text-4xl"], [class~="md:text-4xl"], [class~="lg:text-4xl"], [class~="xl:text-4xl"]) { font-size: calc(2.25rem * var(--rv-text-scale, 1)) !important; }
+html[data-rv-text-size] :is(.text-5xl, [class~="sm:text-5xl"], [class~="md:text-5xl"], [class~="lg:text-5xl"], [class~="xl:text-5xl"]) { font-size: calc(3rem * var(--rv-text-scale, 1)) !important; }
+html[data-rv-text-size] :is(.text-6xl, [class~="sm:text-6xl"], [class~="md:text-6xl"], [class~="lg:text-6xl"], [class~="xl:text-6xl"]) { font-size: calc(3.75rem * var(--rv-text-scale, 1)) !important; }
 
 @layer utilities {
   .bg-glass-card {

@@ -16,7 +16,9 @@ export function ReadableTextControl() {
   const [size, setSize] = useState(getSavedSize);
 
   useEffect(() => {
-    document.documentElement.style.fontSize = `${size}px`;
+    // Scale text utilities only. Changing the root font size also scales every
+    // rem-based layout measurement, which can push studio panels off-screen.
+    document.documentElement.style.setProperty('--rv-text-scale', String(size / 16));
     document.documentElement.dataset.rvTextSize = String(size);
     window.localStorage.setItem(STORAGE_KEY, String(size));
   }, [size]);
